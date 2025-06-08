@@ -1,0 +1,29 @@
+.home-container {
+    padding: 50px;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .home-section {
+    display: flex;
+    align-items: center;
+    gap: 60px;
+    background: #f9f9f9;
+    padding: 40px;
+    border-radius: 10px;
+  }
+  
+  .left, .right {
+    max-width: 300px;
+  }
+  
+  .left h2, .right h2 {
+    text-align: center;
+  }
+  
+  .middle img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+  }
+  

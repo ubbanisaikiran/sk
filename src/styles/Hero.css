@@ -1,0 +1,41 @@
+.hero {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 90vh;
+    background: #fff;
+    position: relative;
+  }
+  
+  .half {
+    flex: 1;
+    padding: 2rem;
+    text-align: center;
+  }
+  
+  .designer {
+    background: #fff;
+    color: #000;
+  }
+  
+  .coder {
+    background: #f9f9f9;
+    color: #333;
+  }
+  
+  .profile-img {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+  }
+  
+  .profile-img img {
+    width: 200px;
+    height: auto;
+    border-radius: 50%;
+    border: 4px solid #000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  }
+  
