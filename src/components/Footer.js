@@ -11,8 +11,11 @@ const Footer = () => {
           <a href="https://www.linkedin.com/in/ubbani-saikiran-7bb753151/" target="_blank" rel="noreferrer">
             <i className="fab fa-linkedin-in"></i>
           </a>
-          <a href="https://github.com/saikiranubbani" target="_blank" rel="noreferrer">
+          <a href="https://github.com/ubbanisaikiran" target="_blank" rel="noreferrer">
             <i className="fab fa-github"></i>
+          </a>
+          <a href="https://instagram.com/saikiran.ln" target="_blank" rel="noreferrer">
+            <i className="fab fa-instagram"></i>
           </a>
           <a href="https://twitter.com/saikiranubbani" target="_blank" rel="noreferrer">
             <i className="fab fa-twitter"></i>
