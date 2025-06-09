@@ -1,19 +1,22 @@
 import React from 'react';
 import '../styles/Header.css'
-import { Link } from 'react-router-dom';
 
 function Header() {
+  const scrollToSection = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="navbar">
-      <div className="logo">SAI KIRAN</div>
+      <div className="logo">Ale<span>X.</span></div>
       <ul className="nav-links">
-        <li><Link to="/">Home</Link></li>
-        <li><Link to="/Education">Education</Link></li>
-        <li><Link to="/projects">Projects</Link></li>
-        <li><Link to="/blog">blog</Link></li>
-        <li><Link to="/about">About</Link></li>
-        <li><Link to="/contact">Contact me</Link></li>
+        {['home', 'about', 'services', 'portfolio', 'contact'].map((item) => (
+          <li key={item} onClick={() => scrollToSection(item)}>
+            {item.charAt(0).toUpperCase() + item.slice(1)}
+          </li>
+        ))}
       </ul>
+      <button className="connect-btn">Connect With Me</button>
     </div>
   );
 }
