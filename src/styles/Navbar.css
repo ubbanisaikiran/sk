@@ -1,0 +1,102 @@
+/* Reset and layout */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 60px;
+    background-color: #121212;
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  /* Logo */
+  .navbar-logo {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #fff;
+  }
+  
+  .x-highlight {
+    color: #fff;
+    position: relative;
+  }
+  
+  .x-highlight::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #d633ff;
+    border-radius: 50%;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  /* Nav links */
+  .navbar-links {
+    display: flex;
+    list-style: none;
+    gap: 40px;
+  }
+  
+  .navbar-links li {
+    position: relative;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: color 0.3s ease;
+  }
+  
+  .navbar-links li:hover {
+    color: #f59e0b;
+  }
+  
+  /* Active underline like arrow */
+  .navbar-links .active {
+    color: #fff;
+  }
+  
+  .navbar-links .active .nav-underline {
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    width: 20px;
+    height: 8px;
+    background: linear-gradient(to right, #d633ff, #f59e0b);
+    border-radius: 50% 0 50% 50%;
+  }
+  
+  /* Gradient Button */
+  .connect-btn {
+    background: linear-gradient(90deg, #d633ff, #f59e0b);
+    border: none;
+    color: white;
+    padding: 10px 25px;
+    border-radius: 30px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  
+  .connect-btn:hover {
+    transform: scale(1.05);
+  }
+  
+
+  @media (max-width: 768px) {
+    .navbar {
+      flex-direction: column;
+      padding: 20px;
+    }
+  
+    .navbar-links {
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+  
+    .connect-btn {
+      margin-top: 20px;
+    }
+  }

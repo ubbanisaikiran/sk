@@ -1,22 +1,31 @@
 import React from 'react';
 import '../styles/Home.css';
-import profileImg from '../assets/image.jpg'; 
+import profileImg from '../assets/profile11.jpeg'; 
+
 
 function Home() {
+  const scrollToSection = (id) => {
+    const section = document.getElementById(id);
+    section?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <div className="home-container">
-      <div className="home-section">
-        <div className="left">
-          <h2>designer</h2>
-          <p>UI/UX product designer specialising in UI design and design systems.</p>
-        </div>
-        <div className="middle">
-        <img src={profileImg} alt="profile" />
-        </div>
-        <div className="right">
-          <h2>&lt;coder&gt;</h2>
-          <p>Front-end developer who writes clean, elegant and efficient code.</p>
-        </div>
+    <div id="home" className="home-section">
+      <img src={profileImg} alt="Profile" className="profile-pic" />
+
+      <h1 className="hero-title">
+        Hi,<span className="gradient-text"> I'm Sai Kiran,</span>  a hybrid techie and strategist.
+      </h1>
+
+      <p className="subtext">
+      With a curious mind and a builder's mindset, I enjoy solving real-world problems by blending business strategy with technology. Whether it’s writing code or analyzing customer insights, I love creating impact through thoughtful, data-driven solutions. <br />
+
+      I blend code and business to deliver real impact.
+      </p>
+
+      <div className="cta-buttons">
+        <button className="gradient-btn" onClick={() => scrollToSection('contact')}>Connect with me</button>
+        <button className="outline-btn">My resume</button>
       </div>
     </div>
   );
