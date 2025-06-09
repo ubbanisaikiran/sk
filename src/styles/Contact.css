@@ -138,4 +138,27 @@
   .submit-btn:hover {
     opacity: 0.9;
   }
+
+
+  .contact-social-icons {
+    margin: 20px;
+    display: flex;
+    gap: 15px;
+  }
+  
+  .contact-social-icons a {
+    background: #1e1e2e;
+    color: #ccc;
+    padding: 15px;
+    border-radius: 10%;
+    font-size: 1.2rem;
+    text-align: center;
+    transition: 0.3s;
+  }
+  
+  .contact-social-icons a:hover {
+    background: linear-gradient(to right, #d633ff, #f59e0b);
+    color: black;
+  }
+  
   

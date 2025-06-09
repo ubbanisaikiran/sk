@@ -54,7 +54,7 @@
   cursor: pointer;
 }
 
-.outline-btn {
+/* .outline-btn {
   padding: 12px 24px;
   border: 2px solid white;
   background: transparent;
@@ -62,4 +62,21 @@
   border-radius: 30px;
   font-weight: bold;
   cursor: pointer;
+} */
+
+.outline-btn {
+  border: 1px solid white;
+  background: transparent;
+  color: white;
+  padding: 10px 25px;
+  border-radius: 30px;
+  margin-left: 10px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+.outline-btn:hover {
+  background: white;
+  color: #0e0e0e;
 }
