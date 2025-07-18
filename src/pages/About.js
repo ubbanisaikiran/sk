@@ -22,19 +22,19 @@ function About() {
 
           <div className="skills">
             <div className="skill">
-              <span>HTML & CSS</span>
+              <span>Business Planning & SDLC</span>
               <div className="bar"><div style={{ width: '90%' }}></div></div>
             </div>
             <div className="skill">
-              <span>React JS</span>
-              <div className="bar"><div style={{ width: '100%' }}></div></div>
+              <span>SQL & Excel</span>
+              <div className="bar"><div style={{ width: '80%' }}></div></div>
             </div>
             <div className="skill">
               <span>JavaScript</span>
               <div className="bar"><div style={{ width: '95%' }}></div></div>
             </div>
             <div className="skill">
-              <span>React Native</span>
+              <span>React Native & React JS</span>
               <div className="bar"><div style={{ width: '85%' }}></div></div>
             </div>
           </div>
