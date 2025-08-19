@@ -42,6 +42,8 @@
 .cta-buttons {
   display: flex;
   gap: 20px;
+  flex-wrap: wrap; /* allows buttons to wrap on small screens */
+  justify-content: center;
 }
 
 .gradient-btn {
@@ -52,17 +54,10 @@
   border-radius: 30px;
   font-weight: bold;
   cursor: pointer;
+  flex: 1; /* buttons expand evenly */
+  min-width: 140px;
+  text-align: center;
 }
-
-/* .outline-btn {
-  padding: 12px 24px;
-  border: 2px solid white;
-  background: transparent;
-  color: white;
-  border-radius: 30px;
-  font-weight: bold;
-  cursor: pointer;
-} */
 
 .outline-btn {
   border: 1px solid white;
@@ -74,9 +69,58 @@
   text-decoration: none;
   font-weight: 500;
   transition: 0.3s;
+  flex: 1; 
+  min-width: 140px;
+  text-align: center;
 }
 
 .outline-btn:hover {
   background: white;
   color: #0e0e0e;
+}
+
+/* 🔹 Mobile responsiveness */
+@media (max-width: 768px) {
+  .profile-pic {
+    width: 220px;
+    height: 220px;
+  }
+
+  .hero-title {
+    font-size: 28px;
+  }
+
+  .subtext {
+    font-size: 14px;
+    line-height: 22px;
+    padding: 0 10px;
+  }
+
+  .cta-buttons {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .gradient-btn,
+  .outline-btn {
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-pic {
+    width: 180px;
+    height: 180px;
+  }
+
+  .hero-title {
+    font-size: 22px;
+  }
+
+  .subtext {
+    font-size: 13px;
+    line-height: 20px;
+  }
 }

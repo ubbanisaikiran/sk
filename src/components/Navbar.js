@@ -17,11 +17,11 @@ const Navbar = () => {
           Home
           {/* <span className="nav-underline" /> */}
         </li>
-        <li onClick={() => scrollToSection("about")}>About</li>
+        <li onClick={() => scrollToSection("about")}>About Me</li>
         <li onClick={() => scrollToSection("skills")}>Skills</li>
         <li onClick={() => scrollToSection("Education")}>Education</li>
         <li onClick={() => scrollToSection("projects")}>Projects</li>
-        <li onClick={() => scrollToSection("contact")}>Contact</li>
+        <li onClick={() => scrollToSection("contact")}>Contact Me</li>
       </ul>
       <button className="connect-btn" onClick={() => scrollToSection("contact")}>
         Connect With Me

@@ -33,7 +33,7 @@ function Home() {
           Connect with me
         </button>
         <a href="/SaiKiran_Resume.pdf" download className="outline-btn">
-          My resume
+          View my Resume
         </a>
       </div>
     </div>

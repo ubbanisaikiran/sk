@@ -1,164 +1,235 @@
 .section-title {
-    font-size: 56px;
-    font-weight: bold;
-    position: relative;
-    margin-bottom: 50px;
-  }
-  
-  .section-title span {
-    background: linear-gradient(to right, #a633ff, #ff8c00);
-    padding: 5px 15px;
-    border-radius: 20px;
-    color: white;
-  }
+  font-size: 56px;
+  font-weight: bold;
+  position: relative;
+  margin-bottom: 50px;
+}
+
+.section-title span {
+  background: linear-gradient(to right, #a633ff, #ff8c00);
+  padding: 5px 15px;
+  border-radius: 20px;
+  color: white;
+}
+
 .contact-section {
-    background-color: #0e0e0e;
-    color: #fff;
-    padding: 100px 20px;
+  background-color: #0e0e0e;
+  color: #fff;
+  padding: 100px 20px;
+  text-align: center;
+}
+
+.contact-container {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 40px;
+  justify-content: space-between;
+}
+
+.contact-left {
+  flex: 1;
+  min-width: 280px;
+}
+
+.contact-subtitle {
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+}
+
+.highlight {
+  background: linear-gradient(to right, #d633ff, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.contact-description {
+  color: #ccc;
+  font-size: 1rem;
+  margin-bottom: 30px;
+  max-width: 400px;
+}
+
+.contact-info p {
+  margin: 12px 0;
+  font-size: 0.95rem;
+}
+
+.contact-info span {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+.contact-right {
+  flex: 1;
+  min-width: 280px;
+}
+
+.contact-title {
+  font-size: 2.2rem;
+  margin-bottom: 30px;
+}
+
+.pink-highlight {
+  position: relative;
+  display: inline-block;
+}
+
+.pink-highlight::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -5px;
+  width: 100%;
+  height: 8px;
+  background: linear-gradient(to right, #d633ff, #f59e0b);
+  z-index: -1;
+  border-radius: 4px;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.contact-form label {
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.contact-form input,
+.contact-form textarea {
+  background-color: #1e1e2e;
+  border: none;
+  padding: 14px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  outline: none;
+  resize: none;
+}
+
+.captcha-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.captcha-placeholder {
+  background: #222;
+  color: #aaa;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.submit-btn {
+  margin-top: 10px;
+  padding: 12px 28px;
+  font-size: 1rem;
+  background: linear-gradient(to right, #d633ff, #f59e0b);
+  color: #000;
+  border: none;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.submit-btn:hover {
+  opacity: 0.9;
+}
+
+.contact-social-icons {
+  margin: 20px;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.contact-social-icons a {
+  background: #1e1e2e;
+  color: #ccc;
+  padding: 15px;
+  border-radius: 10%;
+  font-size: 1.2rem;
+  text-align: center;
+  transition: 0.3s;
+}
+
+.contact-social-icons a:hover {
+  background: linear-gradient(to right, #d633ff, #f59e0b);
+  color: black;
+}
+
+/* 🔹 Tablet Screens */
+@media (max-width: 992px) {
+  .section-title {
+    font-size: 44px;
+  }
+
+  .contact-container {
+    flex-direction: column;
+    align-items: center;
     text-align: center;
   }
-  
-  .contact-container {
-    display: flex;
-    flex-wrap: wrap;
-    max-width: 1200px;
-    margin: 0 auto;
-    gap: 40px;
-    justify-content: space-between;
-  }
-  
-  .contact-left {
-    flex: 1;
-    min-width: 280px;
-  }
-  
-  .contact-subtitle {
-    font-size: 2.5rem;
-    margin-bottom: 20px;
-  }
-  
-  .highlight {
-    background: linear-gradient(to right, #d633ff, #f59e0b);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  
-  .contact-description {
-    color: #ccc;
-    font-size: 1rem;
-    margin-bottom: 30px;
-    max-width: 400px;
-  }
-  
-  .contact-info p {
-    margin: 12px 0;
-    font-size: 0.95rem;
-  }
-  
-  .contact-info span {
-    margin-right: 10px;
-    font-size: 1.2rem;
-  }
-  
+
+  .contact-left,
   .contact-right {
-    flex: 1;
-    min-width: 280px;
+    max-width: 600px;
   }
-  
-  .contact-title {
-    font-size: 2.2rem;
+
+  .contact-description {
+    margin: 0 auto 30px auto;
+  }
+
+  .contact-form {
+    width: 100%;
+  }
+}
+
+/* 🔹 Mobile Screens */
+@media (max-width: 600px) {
+  .contact-section {
+    padding: 60px 15px;
+  }
+
+  .section-title {
+    font-size: 32px;
     margin-bottom: 30px;
   }
-  
-  .pink-highlight {
-    position: relative;
-    display: inline-block;
+
+  .contact-subtitle {
+    font-size: 1.6rem;
   }
-  
-  .pink-highlight::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: -5px;
-    width: 100%;
-    height: 8px;
-    background: linear-gradient(to right, #d633ff, #f59e0b);
-    z-index: -1;
-    border-radius: 4px;
+
+  .contact-title {
+    font-size: 1.5rem;
   }
-  
-  .contact-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .contact-form label {
+
+  .contact-description {
     font-size: 0.9rem;
-    color: #aaa;
+    line-height: 1.5;
   }
-  
+
+  .contact-info p {
+    font-size: 0.85rem;
+  }
+
   .contact-form input,
   .contact-form textarea {
-    background-color: #1e1e2e;
-    border: none;
-    padding: 14px;
-    border-radius: 6px;
-    color: #fff;
-    font-size: 0.9rem;
-    outline: none;
-    resize: none;
+    font-size: 0.85rem;
+    padding: 12px;
   }
-  
-  .captcha-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  
-  .captcha-placeholder {
-    background: #222;
-    color: #aaa;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-  }
-  
+
   .submit-btn {
-    margin-top: 10px;
-    padding: 12px 28px;
-    font-size: 1rem;
-    background: linear-gradient(to right, #d633ff, #f59e0b);
-    color: #000;
-    border: none;
-    border-radius: 40px;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-  .submit-btn:hover {
-    opacity: 0.9;
+    width: 100%;
   }
 
-
-  .contact-social-icons {
-    margin: 20px;
-    display: flex;
-    gap: 15px;
-  }
-  
   .contact-social-icons a {
-    background: #1e1e2e;
-    color: #ccc;
-    padding: 15px;
-    border-radius: 10%;
-    font-size: 1.2rem;
-    text-align: center;
-    transition: 0.3s;
+    padding: 12px;
+    font-size: 1rem;
   }
-  
-  .contact-social-icons a:hover {
-    background: linear-gradient(to right, #d633ff, #f59e0b);
-    color: black;
-  }
-  
-  
+}

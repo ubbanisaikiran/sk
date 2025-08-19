@@ -1,100 +1,159 @@
 .about-section {
-    background-color: #0d0d0d;
-    color: white;
-    padding: 60px 40px;
+  background-color: #0d0d0d;
+  color: white;
+  padding: 60px 40px;
+  text-align: center;
+}
+
+.section-title {
+  font-size: 56px;
+  font-weight: bold;
+  position: relative;
+  margin-bottom: 50px;
+}
+
+.section-title span {
+  background: linear-gradient(to right, #a633ff, #ff8c00);
+  padding: 5px 15px;
+  border-radius: 20px;
+  color: white;
+}
+
+.about-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 50px;
+  align-items: flex-start;
+}
+
+.about-image img {
+  width: 260px;
+  height: auto;
+  border-radius: 20px;
+}
+
+.about-text {
+  max-width: 600px;
+  text-align: left;
+}
+
+.about-text p {
+  margin-bottom: 15px;
+  color: #ccc;
+  font-size: 16px;
+  line-height: 25px;
+}
+
+.skills {
+  margin-top: 20px;
+}
+
+.skill {
+  margin-bottom: 20px;
+}
+
+.skill span {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.bar {
+  width: 100%;
+  background: #222;
+  border-radius: 10px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.bar div {
+  height: 100%;
+  background: linear-gradient(to right, #a633ff, #ff8c00);
+  border-radius: 10px;
+}
+
+.stats {
+  margin-top: 50px;
+  display: flex;
+  justify-content: center;
+  gap: 100px;
+  flex-wrap: wrap;
+  border-top: 1px solid #444;
+  padding-top: 40px;
+}
+
+.stats .number {
+  font-size: 32px;
+  font-weight: bold;
+  background: linear-gradient(to right, #a633ff, #ff8c00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stats p {
+  margin-top: 5px;
+  color: white;
+  text-transform: uppercase;
+  font-size: 14px;
+}
+
+/* 🔹 Tablet screens */
+@media (max-width: 992px) {
+  .section-title {
+    font-size: 44px;
+  }
+
+  .about-content {
+    flex-direction: column;
+    align-items: center;
     text-align: center;
   }
-  
-  .section-title {
-    font-size: 56px;
-    font-weight: bold;
-    position: relative;
-    margin-bottom: 50px;
-  }
-  
-  .section-title span {
-    background: linear-gradient(to right, #a633ff, #ff8c00);
-    padding: 5px 15px;
-    border-radius: 20px;
-    color: white;
-  }
-  
-  .about-content {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 50px;
-    align-items: flex-start;
-  }
-  
-  .about-image img {
-    width: 260px;
-    height: auto;
-    border-radius: 20px;
-  }
-  
+
   .about-text {
-    max-width: 600px;
-    text-align: left;
+    max-width: 90%;
+    text-align: center;
   }
-  
-  .about-text p {
-    margin-bottom: 15px;
-    color: #ccc;
-    font-size: 16px;
-    line-height: 25px;
+
+  .about-image img {
+    width: 220px;
   }
-  
-  .skills {
-    margin-top: 20px;
-  }
-  
-  .skill {
-    margin-bottom: 20px;
-  }
-  
-  .skill span {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-  }
-  
-  .bar {
-    width: 100%;
-    background: #222;
-    border-radius: 10px;
-    height: 10px;
-    overflow: hidden;
-  }
-  
-  .bar div {
-    height: 100%;
-    background: linear-gradient(to right, #a633ff, #ff8c00);
-    border-radius: 10px;
-  }
-  
+
   .stats {
-    margin-top: 50px;
-    display: flex;
-    justify-content: center;
-    gap: 100px;
-    flex-wrap: wrap;
-    border-top: 1px solid #444;
-    padding-top: 40px;
+    gap: 50px;
   }
-  
-  .stats .number {
+}
+
+/* 🔹 Mobile screens */
+@media (max-width: 600px) {
+  .about-section {
+    padding: 40px 20px;
+  }
+
+  .section-title {
     font-size: 32px;
-    font-weight: bold;
-    background: linear-gradient(to right, #a633ff, #ff8c00);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    margin-bottom: 30px;
   }
-  
-  .stats p {
-    margin-top: 5px;
-    color: white;
-    text-transform: uppercase;
+
+  .about-image img {
+    width: 180px;
+  }
+
+  .about-text p {
     font-size: 14px;
+    line-height: 22px;
   }
-  
+
+  .stats {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .stats .number {
+    font-size: 24px;
+  }
+
+  .stats p {
+    font-size: 12px;
+  }
+}
