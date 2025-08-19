@@ -1,94 +1,161 @@
 .project-section {
-    padding: 100px 20px;
-    background: #0e0e0e;
-    color: #fff;
-    text-align: center;
+  padding: 100px 20px;
+  background: #0e0e0e;
+  color: #fff;
+  text-align: center;
+}
+
+.project-title {
+  font-size: 2.8rem;
+  margin-bottom: 40px;
+}
+
+.project-title span {
+  background: linear-gradient(to right, #a633ff, #ff8c00);
+  padding: 5px 15px;
+  border-radius: 20px;
+  color: white;
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.project-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.project-card:hover,
+.project-card.active {
+  transform: translateY(-5px);
+  box-shadow: 0 0 12px rgba(214, 51, 255, 0.5);
+  border: 1px solid #d633ff;
+}
+
+.project-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.project-info {
+  padding: 20px;
+  text-align: left;
+}
+
+.project-caption {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.project-time {
+  font-size: 0.85rem;
+  color: #f59e0b;
+  margin-bottom: 10px;
+}
+
+.project-desc {
+  font-size: 0.95rem;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+.show-more-btn {
+  margin-top: 40px;
+  padding: 12px 28px;
+  font-size: 1rem;
+  background: none;
+  color: white;
+  border: 1px solid white;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.show-more-btn:hover {
+  background: linear-gradient(to right, #d633ff, #f59e0b);
+  color: #000;
+  border: none;
+}
+
+
+@media (max-width: 992px) {
+  .project-section {
+    padding: 70px 15px;
   }
-  
+
   .project-title {
-    font-size: 2.8rem;
-    margin-bottom: 40px;
+    font-size: 2.2rem;
+    margin-bottom: 30px;
   }
-  
-  .project-title span {
-    background: linear-gradient(to right, #a633ff, #ff8c00);
-    padding: 5px 15px;
-    border-radius: 20px;
-    color: white;
-  }
-  
+
   .project-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 30px;
-    max-width: 1200px;
-    margin: 0 auto;
+    gap: 20px;
   }
-  
+
   .project-card {
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 12px;
-    overflow: hidden;
-    cursor: pointer;
-    transition: transform 0.3s, box-shadow 0.3s;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
+    border-radius: 10px;
   }
-  
-  .project-card:hover,
-  .project-card.active {
-    transform: translateY(-5px);
-    box-shadow: 0 0 12px rgba(214, 51, 255, 0.5);
-    border: 1px solid #d633ff;
+}
+
+/* Mobiles */
+@media (max-width: 600px) {
+  .project-section {
+    padding: 50px 10px;
   }
-  
+
+  .project-title {
+    font-size: 1.8rem;
+    margin-bottom: 25px;
+  }
+
+  .project-title span {
+    padding: 4px 10px;
+    font-size: 1.75rem;
+  }
+
+  .project-grid {
+    grid-template-columns: 1fr; /* stack cards */
+    gap: 15px;
+  }
+
+  .project-card {
+    border-radius: 8px;
+  }
+
   .project-image {
-    width: 100%;
-    height: 180px;
-    object-fit: cover;
+    height: 150px;
   }
-  
+
   .project-info {
-    padding: 20px;
-    text-align: left;
+    padding: 15px;
   }
-  
+
   .project-caption {
-    font-size: 1.1rem;
-    font-weight: bold;
-    margin-bottom: 10px;
-    color: #fff;
-  }
-  
-  .project-time {
-    font-size: 0.85rem;
-    color: #f59e0b;
-    margin-bottom: 10px;
-  }
-  
-  .project-desc {
-    font-size: 0.95rem;
-    color: #ccc;
-    line-height: 1.6;
-  }
-  
-  .show-more-btn {
-    margin-top: 40px;
-    padding: 12px 28px;
     font-size: 1rem;
-    background: none;
-    color: white;
-    border: 1px solid white;
-    border-radius: 40px;
-    cursor: pointer;
-    transition: 0.3s;
   }
-  
-  .show-more-btn:hover {
-    background: linear-gradient(to right, #d633ff, #f59e0b);
-    color: #000;
-    border: none;
+
+  .project-desc {
+    font-size: 0.85rem;
+    line-height: 1.4;
   }
-  
+
+  .show-more-btn {
+    font-size: 0.9rem;
+    padding: 10px 22px;
+  }
+}
