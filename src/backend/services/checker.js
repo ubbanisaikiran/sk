@@ -18,10 +18,12 @@ const NAV_WORDS = [
   'a+', 'a-', 'grayscale',
 ];
 
+// ── Check a single company ────────────────────────────────────
 async function checkCompany(company) {
-  // Check BOTH links always
   const urls = [company.announceLink, company.careerLink].filter(u => u?.trim());
   if (!urls.length) return null;
+
+  console.log(`[checker] Scanning ${company.name} — ${urls.length} URL(s):`, urls);
 
   const allJobLinks = [];
   let bestTitle = '';
@@ -29,15 +31,16 @@ async function checkCompany(company) {
   let combinedFingerprint = '';
 
   for (const url of urls) {
+    console.log(`[checker] Fetching: ${url}`);
     try {
       const res = await axios.get(url, {
-        timeout: 15000,
+        timeout: 20000,
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SK-Career-Bot/1.0)' },
       });
 
       const $ = cheerio.load(res.data);
 
-      // Aggressively remove noise
+      // Remove all noise
       $('script, style, noscript').remove();
       $('nav, header, footer').remove();
       $('[class*="nav"], [class*="menu"], [class*="header"], [class*="footer"]').remove();
@@ -45,13 +48,13 @@ async function checkCompany(company) {
       $('[class*="social"], [class*="share"], [class*="skip"], [class*="cookie"]').remove();
       $('[id*="nav"], [id*="menu"], [id*="header"], [id*="footer"]').remove();
 
+      let urlLinks = 0;
+
       // Collect PDF / doc / job links
       $('a').each((_, el) => {
         const href = $(el).attr('href');
         const text = $(el).text().trim();
         if (!href || text.length < 3 || text.length > 150) return;
-
-        // Skip pure nav labels
         if (NAV_WORDS.some(w => text.toLowerCase().trim() === w)) return;
 
         const fullUrl = href.startsWith('http') ? href : (() => {
@@ -65,10 +68,13 @@ async function checkCompany(company) {
 
         if ((isPdf || isDoc || isJob) && !allJobLinks.find(l => l.url === fullUrl)) {
           allJobLinks.push({ url: fullUrl, label: text });
+          urlLinks++;
         }
       });
 
-      // Best title from content headings
+      console.log(`[checker] ${url} → found ${urlLinks} links`);
+
+      // Best title
       if (!bestTitle) {
         $('h1, h2, h3, h4').each((_, el) => {
           const t = $(el).text().trim();
@@ -82,13 +88,12 @@ async function checkCompany(company) {
         });
       }
 
-      // Best description from job rows
+      // Best description
       if (!bestDesc) {
         $('td, li, p').each((_, el) => {
           const text = $(el).text().replace(/\s+/g, ' ').trim();
           if (
-            text.length > 40 &&
-            text.length < 300 &&
+            text.length > 40 && text.length < 300 &&
             JOB_KEYWORDS.some(k => text.toLowerCase().includes(k)) &&
             !text.toLowerCase().match(/^(date|s\.?no|sr\.?no|download|sl|closing)/i)
           ) {
@@ -98,12 +103,14 @@ async function checkCompany(company) {
         });
       }
 
-      combinedFingerprint += allJobLinks.map(l => l.url).join(',');
+      combinedFingerprint += url + ':' + allJobLinks.map(l => l.url).join(',') + '|';
 
     } catch (err) {
-      console.warn(`[checker] Could not fetch ${url}: ${err.message}`);
+      console.warn(`[checker] Failed ${url}: ${err.message}`);
     }
   }
+
+  console.log(`[checker] Total links for ${company.name}: ${allJobLinks.length}`);
 
   if (allJobLinks.length === 0 && !bestDesc) {
     company.lastChecked = new Date();
@@ -137,6 +144,7 @@ async function checkCompany(company) {
   return newUpdate;
 }
 
+// ── Daily check for all users ─────────────────────────────────
 async function runDailyCheck() {
   const users = await User.find({}).lean();
   console.log(`[checker] Daily run — ${users.length} user(s)`);
@@ -167,6 +175,7 @@ async function runDailyCheck() {
   }
 }
 
+// ── Send daily email digest ───────────────────────────────────
 async function sendDigest(user, companies, updates) {
   const subject = updates.length
     ? `⚡ ${updates.length} new update(s) from your companies — SK Career`
@@ -222,6 +231,7 @@ async function sendDigest(user, companies, updates) {
   await sendMail(user.email, subject, html);
 }
 
+// ── Helpers ───────────────────────────────────────────────────
 function pageSimilarity(a, b) {
   const setA = new Set(a.toLowerCase().split(/\s+/));
   const setB = new Set(b.toLowerCase().split(/\s+/));

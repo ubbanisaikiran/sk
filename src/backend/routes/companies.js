@@ -17,10 +17,12 @@ router.post('/', authMW, async (req, res) => {
     const { name, type, announceLink, careerLink } = req.body;
     if (!name?.trim()) return res.status(400).json({ message: 'Company name is required' });
 
+    console.log('[company] Adding:', name, 'type:', type); // debug log
+
     const company = await Company.create({
       userId:       req.userId,
       name:         name.trim(),
-      type:         type === 'govt' ? 'govt' : 'private',
+      type:         type || 'private',
       announceLink: announceLink?.trim() || '',
       careerLink:   careerLink?.trim()   || '',
     });
@@ -32,7 +34,6 @@ router.post('/', authMW, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 router.delete('/:id', authMW, async (req, res) => {
   try {
     const deleted = await Company.findOneAndDelete({ _id: req.params.id, userId: req.userId });

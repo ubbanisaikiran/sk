@@ -34,8 +34,8 @@ export const companyAPI = {
   getAll: () =>
     request('GET', '/companies', null, true),
 
-  add: (name, announceLink, careerLink) =>
-    request('POST', '/companies', { name, announceLink, careerLink }, true),
+  add: (name, type, announceLink, careerLink) =>
+    request('POST', '/companies', { name, type, announceLink, careerLink }, true),
 
   remove: (id) =>
     request('DELETE', `/companies/${id}`, null, true),
@@ -45,7 +45,7 @@ export const companyAPI = {
 
   checkNow: () =>
     request('POST', '/companies/check', null, true),
-  
+
   updateJobStatus: (companyId, updateId, status) =>
     request('PATCH', `/companies/${companyId}/updates/${updateId}`, { status }, true),
 };
