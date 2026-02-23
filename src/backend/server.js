@@ -14,7 +14,8 @@ app.use(cors({
     'http://localhost:3000',
     'https://ubbanisaikiran.github.io',
     process.env.FRONTEND_URL,
-  ]
+  ].filter(Boolean), // Removes undefined values if env vars are missing
+  credentials: true, // Add this if you are managing auth tokens/cookies
 }));
 app.use(express.json());
 
