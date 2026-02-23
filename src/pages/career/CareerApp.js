@@ -43,10 +43,26 @@ const SKIP_URL_PATTERNS = [
   'javascript:', 'mailto:', 'tel:', '#',
   'netbanking', 'internetbanking', 'onlinebanking',
   'bobcrm', 'pmsuryaghar', 'vidyalakshmi', 'pmvidyalaxmi',
-  'calculator', 'emi-calc', 'fd-calc', 'insurance-apply',
+  'calculator', 'emi-calc', 'fd-calc',
   'locate-us', '/branches', '/atm', '/faqs', '/contact',
   '/sitemap', '/privacy', '/disclaimer', '/terms',
   'outlook.com', 'intranet', 'medibuddy',
+  // Insurance & financial product apply links — NOT job links
+  'indiafirstlife.com', 'indiafirst', 'lifeinsurance',
+  'buyonline', 'applyonline', 'onlineapply',
+  'loanapply', 'applyloan', 'loan-apply', 'apply-loan',
+  'cardapply', 'applycard', 'apply-card',
+  'pmsuryaghar', 'pmvidyalaxmi', 'vidyalakshmi',
+  'pmjdy', 'mudra', 'standupmitra',
+  'dil.bank', 'dil2.bank', 'feba.bob', 'bobprepaid',
+  'barodaetrade', 'mfs.kfintech', 'kfintech',
+  'nsdl.com', 'cra.kfintech', 'mynps',
+  'bobworld', 'bobworldetrade',
+  'smarttrade', 'diginext',
+  'cms.rbi', 'sachet.rbi', 'rbi.org',
+  'india.gov.in', 'sancharsaathi', 'cybercrime.gov',
+  'bobcards.com', 'bobcard.co',
+  'barodabnpparibasmf', 'infradebt', 'bgss.in',
 ];
 
 const NO_VACANCY_PHRASES = [
@@ -151,37 +167,69 @@ const ATS_PATTERNS = [
 ];
 
 // ── Universal link scorer ─────────────────────────────────────
+// Domains that are NEVER job application destinations
+const NON_JOB_DOMAINS = [
+  'indiafirstlife.com', 'buyonline', 'lifeinsure', 'generalinsure',
+  'nsdl.com', 'kfintech', 'csdl.com', 'bse', 'nse',
+  'pmsuryaghar', 'vidyalakshmi', 'mudra', 'standup',
+  'rbi.org', 'sebi.gov', 'irdai.gov',
+  'bobcard', 'creditcard', 'debitcard',
+  'loanapply', 'applyloan', 'emiloan',
+];
+
+// URL path patterns that ARE job destinations
+const JOB_URL_PATHS = [
+  '/job', '/jobs', '/career', '/careers', '/recruit', '/recruitment',
+  '/vacancy', '/vacancies', '/opening', '/openings', '/hiring',
+  '/apply', '/notification', '/advertisement', '/circular',
+  '.pdf', '.doc', '.docx',
+  'ibps', 'ssc.nic', 'ncs.gov', 'upsc', 'nta.ac.in',
+  'crpd', 'bankingcareer', 'careerportal',
+];
+
 function scoreLink(linkText, linkUrl, contextText) {
   if (!linkText || linkText.length < 3) return -1;
   if (SKIP_LINK_TEXTS.some(s => linkText.toLowerCase().includes(s))) return -1;
   if (SKIP_URL_PATTERNS.some(p => linkUrl.toLowerCase().includes(p))) return -1;
+  if (NON_JOB_DOMAINS.some(d => linkUrl.toLowerCase().includes(d))) return -1;
 
   let score = 0;
   const ctx = contextText.toLowerCase();
   const txt = linkText.toLowerCase();
   const url = linkUrl.toLowerCase();
 
-  if (url.includes('.pdf'))           score += 4;
-  if (url.match(/\.(doc|docx)$/))     score += 3;
+  // Strong signals — file types
+  if (url.includes('.pdf'))        score += 4;
+  if (url.match(/\.(doc|docx)$/)) score += 3;
+
+  // URL path looks like a job/career URL — strong positive
+  const isJobUrl = JOB_URL_PATHS.some(p => url.includes(p));
+  if (isJobUrl) score += 4;
+
+  // Link text matches job keywords
   if (JOB_KEYWORDS.some(k => txt.includes(k))) score += 4;
 
+  // Context signals
   const contextSignals = JOB_CONTEXT_SIGNALS.filter(s => ctx.includes(s)).length;
   score += Math.min(contextSignals, 5);
 
-  if (url.match(/\/(job|career|recruit|vacancy|opening|apply|notification|advertisement|hiring)/)) score += 3;
-
-  const jobPortals = ['ibps', 'ssc.nic', 'ncs.gov', 'upsc', 'nta.ac.in', 'employment', 'naukri', 'linkedin.com/jobs'];
-  if (jobPortals.some(p => url.includes(p))) score += 3;
-
-  // Boost for "Apply Now" buttons that are inside job sections
+  // "Apply Now" — ONLY score high if URL is clearly a job URL
+  // Otherwise penalize heavily — it's probably a product CTA
   if (txt === 'apply now' || txt === 'apply') {
-    const hasJobContext = JOB_CONTEXT_SIGNALS.some(s => ctx.includes(s));
-    score += hasJobContext ? 5 : -3;
+    if (isJobUrl) {
+      score += 4;
+    } else {
+      // "Apply Now" on non-job URL = product CTA, reject
+      return -1;
+    }
   }
+
+  // Known job portals
+  const jobPortals = ['ibps', 'ssc.nic', 'ncs.gov', 'upsc', 'nta.ac.in', 'employment'];
+  if (jobPortals.some(p => url.includes(p))) score += 3;
 
   return score;
 }
-
 // ── Fetch page HTML (with JS fallback) ───────────────────────
 async function fetchHTML(url) {
   // First try fast axios fetch
