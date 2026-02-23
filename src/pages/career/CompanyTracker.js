@@ -28,11 +28,16 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
     if (!form.name.trim()) { setError('Company name is required'); return; }
     setError(''); setLoading(true);
     try {
-      const data = await companyAPI.add(form.name.trim(), form.announceLink, form.careerLink);
+      const data = await companyAPI.add(
+        form.name.trim(),
+        form.type,
+        form.announceLink,
+        form.careerLink
+      );
       setCompanies(prev => [...prev, data.company]);
-      setForm({ name: '', announceLink: '', careerLink: '' });
-      setSuccess('✓ Company saved! Daily updates at 6:30 AM.');
-      setTimeout(() => setSuccess(''), 3000);
+      setForm({ name: '', type: 'private', announceLink: '', careerLink: '' });
+      setSuccess('✓ Company saved! Scanning now...');
+      setTimeout(() => setSuccess(''), 4000);
     } catch (e) {
       setError(e.message);
     }
@@ -103,27 +108,30 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
                 label="Company Name *"
                 value={form.name}
                 onChange={v => set('name', v)}
-                placeholder="e.g. Google, TCS, Infosys"
+                placeholder="e.g. Google, TCS, CEL"
               />
+
+              {/* Type toggle */}
               <div className="career-input-wrap">
-   <label className="career-input-label">Company Type</label>
-  <div className="career-type-toggle">
-    <button
-      type="button"
-      className={`career-type-btn ${form.type === 'private' ? 'active' : ''}`}
-      onClick={() => set('type', 'private')}
-    >
-      🏢 Private
-    </button>
-    <button
-      type="button"
-      className={`career-type-btn ${form.type === 'govt' ? 'active' : ''}`}
-      onClick={() => set('type', 'govt')}
-    >
-      🏛️ Govt
-    </button>
-  </div>
-</div>
+                <label className="career-input-label">Company Type</label>
+                <div className="career-type-toggle">
+                  <button
+                    type="button"
+                    className={`career-type-btn ${form.type === 'private' ? 'active' : ''}`}
+                    onClick={() => set('type', 'private')}
+                  >
+                    🏢 Private
+                  </button>
+                  <button
+                    type="button"
+                    className={`career-type-btn ${form.type === 'govt' ? 'active' : ''}`}
+                    onClick={() => set('type', 'govt')}
+                  >
+                    🏛️ Govt
+                  </button>
+                </div>
+              </div>
+
               <InputField
                 label="Announcement / Jobs Page Link"
                 value={form.announceLink}
@@ -138,13 +146,14 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
               />
             </div>
 
-            {error && <div className="career-alert career-alert--error">{error}</div>}
+            {error   && <div className="career-alert career-alert--error">{error}</div>}
             {success && <div className="career-alert career-alert--success">{success}</div>}
 
             <button
               className="career-btn career-btn--primary career-btn--full"
               onClick={handleSave}
               disabled={loading}
+              style={{ marginTop: '16px' }}
             >
               {loading ? 'Saving...' : '💾 Save Company'}
             </button>
@@ -166,7 +175,20 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
                 : companies.map(c => (
                   <div key={c._id} className="career-company-item">
                     <div className="career-company-item__info">
-                      <div className="career-company-item__name">{c.name}</div>
+                      <div className="career-company-item__name">
+                        {c.name}
+                        <span style={{
+                          marginLeft: '8px',
+                          fontSize: '10px',
+                          padding: '2px 8px',
+                          borderRadius: '20px',
+                          background: c.type === 'govt' ? 'rgba(234,179,8,0.15)' : 'rgba(99,102,241,0.15)',
+                          color: c.type === 'govt' ? '#fbbf24' : '#a5b4fc',
+                          fontFamily: 'monospace',
+                        }}>
+                          {c.type === 'govt' ? '🏛️ Govt' : '🏢 Private'}
+                        </span>
+                      </div>
                       <div className="career-company-item__meta">
                         {c.careerLink
                           ? <a href={c.careerLink} target="_blank" rel="noopener noreferrer" className="career-link">Career Page ↗</a>

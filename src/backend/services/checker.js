@@ -10,7 +10,12 @@ const JOB_KEYWORDS = [
   'admit card', 'walk-in', 'interview', 'shortlist',
 ];
 
-// ── Check a single company ────────────────────────────────────
+const NAV_WORDS = [
+  'home', 'about', 'contact', 'login', 'logout', 'menu',
+  'skip', 'accessibility', 'hindi', 'english', 'sitemap',
+  'feedback', 'help', 'search', 'close', 'open', 'toggle',
+];
+
 async function checkCompany(company) {
   const urls = [company.announceLink, company.careerLink].filter(u => u?.trim());
   if (!urls.length) return null;
@@ -23,26 +28,28 @@ async function checkCompany(company) {
     try {
       const res = await axios.get(url, {
         timeout: 15000,
-        headers: { 'User-Agent': 'Mozilla/5.0 (SK-Career-Bot/1.0)' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SK-Career-Bot/1.0)' },
       });
 
       const $ = cheerio.load(res.data);
 
-      // Aggressively remove noise
-      $('script, style, nav, footer, header, noscript').remove();
-      $('[class*="nav"], [class*="menu"], [class*="breadcrumb"]').remove();
-      $('[class*="accessibility"], [class*="toolbar"], [id*="toolbar"]').remove();
-      $('[class*="skip"], [class*="social"], [class*="share"]').remove();
+      // Remove all noise aggressively
+      $('script, style, noscript').remove();
+      $('nav, header, footer').remove();
+      $('[class*="nav"], [class*="menu"], [class*="header"], [class*="footer"]').remove();
+      $('[class*="accessibility"], [class*="toolbar"], [class*="breadcrumb"]').remove();
+      $('[class*="social"], [class*="share"], [class*="skip"]').remove();
+      $('[id*="nav"], [id*="menu"], [id*="header"], [id*="footer"]').remove();
 
-      // Find PDF/doc/job links with meaningful labels
+      // Collect all meaningful links
       $('a').each((_, el) => {
-        const href  = $(el).attr('href');
-        const text  = $(el).text().trim();
+        const href = $(el).attr('href');
+        const text = $(el).text().trim();
         if (!href || text.length < 3) return;
 
-        // Skip nav-like labels
-        const navWords = ['home', 'about', 'contact', 'login', 'logout', 'menu', 'skip', 'accessibility', 'hindi', 'english'];
-        if (navWords.some(w => text.toLowerCase().includes(w))) return;
+        // Skip nav words
+        if (NAV_WORDS.some(w => text.toLowerCase() === w)) return;
+        if (text.length < 4 || text.length > 120) return;
 
         const fullUrl = href.startsWith('http') ? href : (() => {
           try { return new URL(href, url).href; } catch { return null; }
@@ -54,41 +61,38 @@ async function checkCompany(company) {
         const isJob = JOB_KEYWORDS.some(k => text.toLowerCase().includes(k));
 
         if ((isPdf || isDoc || isJob) && !allJobLinks.find(l => l.url === fullUrl)) {
-          allJobLinks.push({ url: fullUrl, label: text.slice(0, 80) });
+          allJobLinks.push({ url: fullUrl, label: text });
         }
       });
 
-      // Find meaningful job rows — skip short table headers
-      const jobRows = [];
-      $('td, li, p').each((_, el) => {
-        const text = $(el).text().replace(/\s+/g, ' ').trim();
-        // Must be meaningful sentence, not a header
-        if (
-          text.length > 30 &&
-          text.length < 300 &&
-          JOB_KEYWORDS.some(k => text.toLowerCase().includes(k)) &&
-          !text.toLowerCase().includes('date of') &&
-          !text.toLowerCase().includes('s.no') &&
-          !/^\d+$/.test(text)
-        ) {
-          jobRows.push(text);
-        }
-      });
-
-      // Pick best title — from actual content headings, not page title
+      // Find best title
       if (!bestTitle) {
         $('h1, h2, h3, h4').each((_, el) => {
           const t = $(el).text().trim();
-          const navWords = ['accessibility', 'menu', 'nav', 'toolbar', 'skip'];
-          if (t.length > 10 && t.length < 120 && !navWords.some(w => t.toLowerCase().includes(w))) {
+          if (
+            t.length > 10 && t.length < 150 &&
+            !NAV_WORDS.some(w => t.toLowerCase().includes(w))
+          ) {
             bestTitle = t;
             return false;
           }
         });
       }
 
-      if (jobRows.length > 0 && !bestDesc) {
-        bestDesc = jobRows[0].slice(0, 200);
+      // Find best job description
+      if (!bestDesc) {
+        $('td, li, p').each((_, el) => {
+          const text = $(el).text().replace(/\s+/g, ' ').trim();
+          if (
+            text.length > 40 &&
+            text.length < 300 &&
+            JOB_KEYWORDS.some(k => text.toLowerCase().includes(k)) &&
+            !text.toLowerCase().match(/^(date|s\.?no|sr\.?no|download|sl)/i)
+          ) {
+            bestDesc = text.slice(0, 220);
+            return false;
+          }
+        });
       }
 
     } catch (err) {
@@ -112,7 +116,7 @@ async function checkCompany(company) {
   if (changed) {
     newUpdate = {
       title:       bestTitle || `New opening at ${company.name}`,
-      description: bestDesc  || `${company.name} has posted new career information. Check the downloads below.`,
+      description: bestDesc  || `${company.name} has posted new career information.`,
       applyLink:   allJobLinks[0]?.url || company.careerLink || '',
       applyLinks:  allJobLinks.map(l => l.url).slice(0, 6),
       applyLabels: allJobLinks.map(l => l.label).slice(0, 6),
@@ -128,7 +132,6 @@ async function checkCompany(company) {
   return newUpdate;
 }
 
-// ── Daily check for all users ─────────────────────────────────
 async function runDailyCheck() {
   const users = await User.find({}).lean();
   console.log(`[checker] Daily run — ${users.length} user(s)`);
@@ -159,7 +162,6 @@ async function runDailyCheck() {
   }
 }
 
-// ── Send daily email digest ───────────────────────────────────
 async function sendDigest(user, companies, updates) {
   const subject = updates.length
     ? `⚡ ${updates.length} new update(s) from your companies — SK Career`
@@ -215,7 +217,6 @@ async function sendDigest(user, companies, updates) {
   await sendMail(user.email, subject, html);
 }
 
-// ── Helpers ───────────────────────────────────────────────────
 function pageSimilarity(a, b) {
   const setA = new Set(a.toLowerCase().split(/\s+/));
   const setB = new Set(b.toLowerCase().split(/\s+/));
