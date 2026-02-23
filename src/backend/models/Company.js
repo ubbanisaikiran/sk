@@ -4,6 +4,7 @@ const updateSchema = new mongoose.Schema({
   title:       { type: String, required: true },
   description: { type: String, default: '' },
   applyLink:   { type: String, default: '' },
+  applyLinks:  { type: [String], default: [] },
   status:      { type: String, enum: ['fresh', 'applied', 'thinking'], default: 'fresh' },
   detectedAt:  { type: Date, default: Date.now },
 });

@@ -12,38 +12,54 @@ const JOB_KEYWORDS = [
 
 // ── Check a single company ────────────────────────────────────
 async function checkCompany(company) {
-  const url = company.announceLink || company.careerLink;
-  if (!url) return null;
+  const urls = [company.announceLink, company.careerLink].filter(u => u?.trim());
+  if (!urls.length) return null;
 
-  let html;
-  try {
-    const res = await axios.get(url, {
-      timeout: 15000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (SK-Career-Bot/1.0)' },
-    });
-    html = res.data;
-  } catch (err) {
-    console.warn(`[checker] Could not fetch ${company.name}: ${err.message}`);
+  let combinedContent = '';
+  const allJobLinks = [];
+
+  // Check BOTH links
+  for (const url of urls) {
+    try {
+      const res = await axios.get(url, {
+        timeout: 15000,
+        headers: { 'User-Agent': 'Mozilla/5.0 (SK-Career-Bot/1.0)' },
+      });
+
+      const $ = cheerio.load(res.data);
+      $('script, style, nav, footer, header, noscript').remove();
+      combinedContent += $('body').text().replace(/\s+/g, ' ').trim().slice(0, 4000);
+
+      // Collect job links + PDF/doc links
+      $('a').each((_, el) => {
+        const href = $(el).attr('href');
+        const text = $(el).text().trim().toLowerCase();
+        const isPdf = href?.toLowerCase().endsWith('.pdf');
+        const isDoc = href?.toLowerCase().endsWith('.doc') || href?.toLowerCase().endsWith('.docx');
+        const isJobLink = href && JOB_KEYWORDS.some(k => text.includes(k));
+
+        if (href && (isPdf || isDoc || isJobLink)) {
+          try {
+            const fullUrl = href.startsWith('http') ? href : new URL(href, url).href;
+            if (!allJobLinks.includes(fullUrl)) {
+              allJobLinks.push(fullUrl);
+            }
+          } catch { }
+        }
+      });
+
+    } catch (err) {
+      console.warn(`[checker] Could not fetch ${url}: ${err.message}`);
+    }
+  }
+
+  if (!combinedContent) {
     company.lastChecked = new Date();
     await company.save();
     return null;
   }
 
-  const $ = cheerio.load(html);
-  $('script, style, nav, footer, header, noscript').remove();
-  const currentContent = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 6000);
-
-  // Collect job links
-  const jobLinks = [];
-  $('a').each((_, el) => {
-    const href = $(el).attr('href');
-    const text = $(el).text().trim().toLowerCase();
-    if (href && JOB_KEYWORDS.some(k => text.includes(k))) {
-      try {
-        jobLinks.push(href.startsWith('http') ? href : new URL(href, url).href);
-      } catch { }
-    }
-  });
+  const currentContent = combinedContent.slice(0, 6000);
 
   // Detect changes
   const changed = company.lastContent
@@ -53,13 +69,14 @@ async function checkCompany(company) {
   let newUpdate = null;
   if (changed) {
     const sentences = extractJobSentences(company.lastContent || '', currentContent);
-    if (sentences.length > 0 || (!company.lastContent && jobLinks.length > 0)) {
+    if (sentences.length > 0 || (!company.lastContent && allJobLinks.length > 0)) {
       newUpdate = {
         title:       `New update from ${company.name}`,
         description: sentences.length
           ? sentences.slice(0, 3).join(' — ')
           : `${company.name} has posted new career information.`,
-        applyLink:   jobLinks[0] || company.careerLink || '',
+        applyLink:   allJobLinks[0] || company.careerLink || '',
+        applyLinks:  allJobLinks.slice(0, 5),
         detectedAt:  new Date(),
       };
       company.updates.unshift(newUpdate);
@@ -85,7 +102,6 @@ async function runDailyCheck() {
 
       await Promise.allSettled(companies.map(c => checkCompany(c)));
 
-      // Get today's updates
       const fresh = await Company.find({ userId: user._id });
       const cutoff = Date.now() - 24 * 60 * 60 * 1000;
       const todayUpdates = [];
@@ -93,7 +109,7 @@ async function runDailyCheck() {
       for (const c of fresh) {
         for (const u of c.updates) {
           if (new Date(u.detectedAt).getTime() >= cutoff) {
-            todayUpdates.push({ ...u.toObject(), company: c.name });
+            todayUpdates.push({ ...u.toObject(), company: c.name, companyId: c._id, type: c.type });
           }
         }
       }
@@ -117,9 +133,15 @@ async function sendDigest(user, companies, updates) {
           <div style="color:#6366f1;font-size:12px;font-weight:700;margin-bottom:6px">${u.company.toUpperCase()}</div>
           <h3 style="margin:0 0 8px;font-size:15px">${u.title}</h3>
           <p style="color:#6b7280;font-size:13px;margin:0 0 12px">${u.description}</p>
-          ${u.applyLink
-            ? `<a href="${u.applyLink}" style="display:inline-block;padding:8px 20px;background:#6366f1;color:#fff;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">Apply Now →</a>`
-            : ''}
+          ${u.applyLinks && u.applyLinks.length > 1
+            ? u.applyLinks.map((link, i) => `
+                <a href="${link}" style="display:inline-block;margin:4px;padding:8px 16px;background:#ede9fe;color:#6366f1;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">
+                  📄 ${link.split('/').pop() || `Document ${i + 1}`}
+                </a>`).join('')
+            : u.applyLink
+              ? `<a href="${u.applyLink}" style="display:inline-block;padding:8px 20px;background:#6366f1;color:#fff;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">Apply Now →</a>`
+              : ''
+          }
         </div>
       `).join('')
     : `<p style="color:#9ca3af;text-align:center;padding:32px">No new updates today.</p>`;
@@ -127,7 +149,7 @@ async function sendDigest(user, companies, updates) {
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:auto">
       <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px;border-radius:12px 12px 0 0;text-align:center;color:#fff">
-        <h1 style="margin:0;font-size:22px">⚡ SK Career Upgrade</h1>
+        <h1 style="margin:0;font-size:22px">⚡ SK Career Upstep</h1>
         <p style="margin:8px 0 0;opacity:0.8;font-size:13px">
           ${new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
         </p>

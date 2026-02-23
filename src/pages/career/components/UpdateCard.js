@@ -34,16 +34,31 @@ export default function UpdateCard({ update, onStatusChange }) {
       <div className="career-update-card__desc">{update.description}</div>
 
       <div className="career-update-card__actions">
-        {update.applyLink && (
-          <a
-            href={update.applyLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="career-btn career-btn--primary career-update-card__apply"
-          >
-            Apply Now →
-          </a>
-        )}
+        {update.applyLinks && update.applyLinks.length > 1 ? (
+  <div className="career-update-card__files">
+    <p className="career-update-card__files-label">📎 Available Downloads:</p>
+    {update.applyLinks.map((link, i) => (
+      <a
+        key={i}
+        href={link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="career-update-card__file-btn"
+      >
+        📄 {link.split('/').pop() || `Document ${i + 1}`}
+      </a>
+    ))}
+  </div>
+) : update.applyLink ? (
+  <a
+    href={update.applyLink}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="career-btn career-btn--primary career-update-card__apply"
+  >
+    Apply Now →
+  </a>
+) : null}
 
         <button
           className={`career-btn ${status === 'applied' ? 'career-btn--success' : 'career-btn--ghost'}`}
