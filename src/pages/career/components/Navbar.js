@@ -5,7 +5,7 @@ export default function Navbar({ user, onLogout, onHome, onCompanies, showCompan
     <nav className="career-nav">
       <div className="career-nav__brand" onClick={onHome} style={{ cursor: 'pointer' }}>
         <div className="career-nav__logo">⚡</div>
-        <span className="career-nav__title">Career Upstep</span>
+        <span className="career-nav__title">Career Upgrade</span>
       </div>
 
       <div className="career-nav__actions">

@@ -19,7 +19,7 @@ router.post('/register', async (req, res) => {
 
     const user = await User.create({ name, email, password });
 
-    await sendMail(email, 'Welcome to SK Career Upstep ⚡', `
+    await sendMail(email, 'Welcome to SK Career Upgrade ⚡', `
       <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px">
         <h2 style="color:#6366f1">Welcome, ${name}! ⚡</h2>
         <p>Your account is ready. We will send you a daily job digest every morning at <strong>6:30 AM IST</strong>.</p>
@@ -62,7 +62,7 @@ router.post('/forgot-password', async (req, res) => {
 
     const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}?reset=true&email=${encodeURIComponent(email)}`;
 
-    await sendMail(email, 'Password Reset — SK Career Upstep', `
+    await sendMail(email, 'Password Reset — SK Career Upgrade', `
       <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px">
         <h2 style="color:#6366f1">Reset Your Password ⚡</h2>
         <p>Click below to reset your password.</p>

@@ -127,7 +127,7 @@ async function sendDigest(user, companies, updates) {
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:auto">
       <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px;border-radius:12px 12px 0 0;text-align:center;color:#fff">
-        <h1 style="margin:0;font-size:22px">⚡ SK Career Upstep</h1>
+        <h1 style="margin:0;font-size:22px">⚡ SK Career Upgrade</h1>
         <p style="margin:8px 0 0;opacity:0.8;font-size:13px">
           ${new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
         </p>

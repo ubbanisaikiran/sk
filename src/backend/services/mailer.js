@@ -21,7 +21,7 @@ async function sendMail(to, subject, html) {
   }
   try {
     const info = await transport().sendMail({
-      from: `"SK Career Upstep ⚡" <${process.env.MAIL_USER}>`,
+      from: `"SK Career Upgrade ⚡" <${process.env.MAIL_USER}>`,
       to,
       subject,
       html,

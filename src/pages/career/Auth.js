@@ -46,7 +46,7 @@ export default function Auth({ onLogin, onBack }) {
       <div className="career-auth__card">
         <div className="career-auth__brand">
           <div className="career-auth__icon">⚡</div>
-          <h2 className="career-auth__heading">Career Upstep</h2>
+          <h2 className="career-auth__heading">Career Upgrade</h2>
           <p className="career-auth__sub">
             {mode === MODES.LOGIN && 'Welcome back'}
             {mode === MODES.REGISTER && 'Create your account'}

@@ -1,0 +1,294 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+/* ── Overlay ───────────────────────────────────────────────── */
+.launch-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.4s ease;
+}
+
+/* ── Modal ─────────────────────────────────────────────────── */
+.launch-modal {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  background: #0d0d1a;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px;
+  padding: 48px 40px 36px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-family: 'Syne', sans-serif;
+  color: #fff;
+  animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.1);
+}
+
+/* Background effects inside modal */
+.launch-modal__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+.launch-modal__orb--1 {
+  width: 350px; height: 350px;
+  background: rgba(99,102,241,0.2);
+  top: -150px; left: -100px;
+}
+.launch-modal__orb--2 {
+  width: 250px; height: 250px;
+  background: rgba(236,72,153,0.15);
+  bottom: -100px; right: -80px;
+}
+.launch-modal__grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* Close button */
+.launch-modal__close {
+  position: absolute;
+  top: 16px; right: 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.4);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.launch-modal__close:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* Badge */
+.launch-modal__badge {
+  position: relative; z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 16px;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  color: #4ade80;
+  margin-bottom: 20px;
+  letter-spacing: 0.5px;
+}
+.launch-modal__dot {
+  width: 6px; height: 6px;
+  background: #4ade80;
+  border-radius: 50%;
+  animation: blink 2s infinite;
+}
+
+/* Title */
+.launch-modal__title {
+  position: relative; z-index: 1;
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0 0 12px;
+  letter-spacing: -1.5px;
+}
+.launch-modal__name {
+  background: linear-gradient(135deg, #6366f1, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.launch-modal__sub {
+  position: relative; z-index: 1;
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  font-family: 'DM Mono', monospace;
+  line-height: 1.8;
+  margin: 0 0 32px;
+}
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.launch-modal__cards {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: 100%;
+  margin-bottom: 24px;
+}
+.launch-modal__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 24px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.02);
+  position: relative;
+  overflow: hidden;
+}
+.launch-modal__card::before {
+  content: '';
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 16px;
+}
+.launch-modal__card--portfolio::before {
+  background: linear-gradient(135deg, rgba(99,102,241,0.12), transparent);
+}
+.launch-modal__card--career::before {
+  background: linear-gradient(135deg, rgba(236,72,153,0.12), transparent);
+}
+.launch-modal__card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.3);
+}
+.launch-modal__card:hover::before { opacity: 1; }
+
+.launch-modal__card-icon {
+  font-size: 28px;
+  margin-bottom: 12px;
+  position: relative; z-index: 1;
+}
+.launch-modal__card-body {
+  position: relative; z-index: 1;
+  flex: 1;
+}
+.launch-modal__card-tag {
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.launch-modal__card--portfolio .launch-modal__card-tag { color: #a5b4fc; }
+.launch-modal__card--career .launch-modal__card-tag { color: #f9a8d4; }
+
+.launch-modal__card-title {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+.launch-modal__card-desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  font-family: 'DM Mono', monospace;
+  line-height: 1.6;
+  margin: 0;
+}
+.launch-modal__card-arrow {
+  position: absolute;
+  bottom: 18px; right: 20px;
+  font-size: 18px;
+  color: rgba(255,255,255,0.15);
+  transition: all 0.3s ease;
+}
+.launch-modal__card:hover .launch-modal__card-arrow {
+  color: #fff;
+  transform: translateX(4px);
+}
+
+.launch-modal__hint {
+  position: relative; z-index: 1;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  color: rgba(255,255,255,0.15);
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+/* ── Animations ────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 580px) {
+  .launch-modal { padding: 36px 20px 28px; }
+  .launch-modal__cards { grid-template-columns: 1fr; }
+  .launch-modal__title { letter-spacing: -0.5px; }
+}
+
+/* ── Multiple badges ───────────────────────────────────────── */
+.launch-modal__badges {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 20px;
+  position: relative; z-index: 1;
+}
+.launch-modal__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 16px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.5px;
+}
+.launch-modal__badge--green {
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.25);
+  color: #4ade80;
+}
+.launch-modal__badge--blue {
+  background: rgba(99,102,241,0.1);
+  border: 1px solid rgba(99,102,241,0.25);
+  color: #a5b4fc;
+}
+
+/* ── Value props row ───────────────────────────────────────── */
+.launch-modal__props {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 28px;
+  position: relative; z-index: 1;
+}
+.launch-modal__prop {
+  padding: 6px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  color: rgba(255,255,255,0.6);
+}
