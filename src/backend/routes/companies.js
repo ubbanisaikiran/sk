@@ -19,17 +19,15 @@ router.post('/', authMW, async (req, res) => {
     const { name, type, announceLink, careerLink } = req.body;
     if (!name?.trim()) return res.status(400).json({ message: 'Company name is required' });
 
-   const company = await Company.create({
-  userId: req.userId,
-  name: name.trim(),
-  type: type || 'private',
-  announceLink: announceLink?.trim() || '',
-  careerLink:   careerLink?.trim()   || '',
-});
+    const company = await Company.create({
+      userId:       req.userId,
+      name:         name.trim(),
+      type:         type || 'private',
+      announceLink: announceLink?.trim() || '',
+      careerLink:   careerLink?.trim()   || '',
+    });
 
-    // Initial check in background
     checkCompany(company).catch(console.error);
-
     res.status(201).json({ company });
   } catch (err) {
     console.error('add company:', err.message);
@@ -61,7 +59,8 @@ router.get('/updates', authMW, async (req, res) => {
           title:       u.title,
           description: u.description,
           applyLink:   u.applyLink,
-          applyLinks:  u.applyLinks || [],
+          applyLinks:  u.applyLinks  || [],
+          applyLabels: u.applyLabels || [],
           status:      u.status,
           detectedAt:  u.detectedAt,
           company:     c.name,

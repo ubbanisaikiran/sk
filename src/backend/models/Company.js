@@ -1,12 +1,13 @@
 const mongoose = require('mongoose');
 
 const updateSchema = new mongoose.Schema({
-  title:       { type: String, required: true },
-  description: { type: String, default: '' },
-  applyLink:   { type: String, default: '' },
-  applyLinks:  { type: [String], default: [] },
-  status:      { type: String, enum: ['fresh', 'applied', 'thinking'], default: 'fresh' },
-  detectedAt:  { type: Date, default: Date.now },
+  title:        { type: String, required: true },
+  description:  { type: String, default: '' },
+  applyLink:    { type: String, default: '' },
+  applyLinks:   { type: [String], default: [] },
+  applyLabels:  { type: [String], default: [] },
+  status:       { type: String, enum: ['fresh', 'applied', 'thinking'], default: 'fresh' },
+  detectedAt:   { type: Date, default: Date.now },
 });
 
 const companySchema = new mongoose.Schema({

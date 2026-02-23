@@ -15,8 +15,9 @@ async function checkCompany(company) {
   const urls = [company.announceLink, company.careerLink].filter(u => u?.trim());
   if (!urls.length) return null;
 
-  let combinedContent = '';
   const allJobLinks = [];
+  let bestTitle = '';
+  let bestDesc  = '';
 
   for (const url of urls) {
     try {
@@ -26,14 +27,13 @@ async function checkCompany(company) {
       });
 
       const $ = cheerio.load(res.data);
-      $('script, style, nav, footer, header, noscript').remove();
-      combinedContent += $('body').text().replace(/\s+/g, ' ').trim().slice(0, 4000);
+      $('script, style, nav, footer, header, noscript, .nav, .menu, .breadcrumb').remove();
 
-      // Collect PDF, doc and job links
+      // Collect PDF/doc/job links with their label
       $('a').each((_, el) => {
         const href = $(el).attr('href');
         const text = $(el).text().trim();
-        if (!href) return;
+        if (!href || !text) return;
 
         const fullUrl = href.startsWith('http') ? href : (() => {
           try { return new URL(href, url).href; } catch { return null; }
@@ -41,26 +41,45 @@ async function checkCompany(company) {
         if (!fullUrl) return;
 
         const isPdf  = fullUrl.toLowerCase().includes('.pdf');
-        const isDoc  = fullUrl.toLowerCase().match(/\.(doc|docx)$/);
+        const isDoc  = !!fullUrl.toLowerCase().match(/\.(doc|docx)$/);
         const isJob  = JOB_KEYWORDS.some(k => text.toLowerCase().includes(k));
 
-        if ((isPdf || isDoc || isJob) && !allJobLinks.includes(fullUrl)) {
-          allJobLinks.push(fullUrl);
+        if ((isPdf || isDoc || isJob) && !allJobLinks.find(l => l.url === fullUrl)) {
+          allJobLinks.push({ url: fullUrl, label: text.slice(0, 60) });
         }
       });
+
+      // Extract clean title
+      const pageTitle = $('h1, h2, h3').first().text().trim().slice(0, 100);
+      if (pageTitle && !bestTitle) bestTitle = pageTitle;
+
+      // Find best job description row
+      const jobRows = [];
+      $('tr, li, p').each((_, el) => {
+        const text = $(el).text().replace(/\s+/g, ' ').trim();
+        if (
+          text.length > 20 && text.length < 300 &&
+          JOB_KEYWORDS.some(k => text.toLowerCase().includes(k))
+        ) {
+          jobRows.push(text);
+        }
+      });
+      if (jobRows.length > 0 && !bestDesc) {
+        bestDesc = jobRows[0].slice(0, 200);
+      }
 
     } catch (err) {
       console.warn(`[checker] Could not fetch ${url}: ${err.message}`);
     }
   }
 
-  if (!combinedContent) {
+  if (allJobLinks.length === 0 && !bestDesc) {
     company.lastChecked = new Date();
     await company.save();
     return null;
   }
 
-  const currentContent = combinedContent.slice(0, 6000);
+  const currentContent = allJobLinks.map(l => l.url).join(',') + bestDesc;
 
   const changed = company.lastContent
     ? pageSimilarity(company.lastContent, currentContent) < 0.93
@@ -68,22 +87,16 @@ async function checkCompany(company) {
 
   let newUpdate = null;
   if (changed) {
-    const sentences = extractJobSentences(company.lastContent || '', currentContent);
-    if (sentences.length > 0 || (!company.lastContent && allJobLinks.length > 0)) {
-      newUpdate = {
-        title: sentences.length
-          ? sentences[0].slice(0, 100)
-          : `New opening at ${company.name}`,
-        description: sentences.length > 1
-          ? sentences.slice(1).join(' · ')
-          : `${company.name} has posted new career information. Check the links below.`,
-        applyLink:  allJobLinks[0] || company.careerLink || '',
-        applyLinks: allJobLinks.slice(0, 5),
-        detectedAt: new Date(),
-      };
-      company.updates.unshift(newUpdate);
-      if (company.updates.length > 50) company.updates.length = 50;
-    }
+    newUpdate = {
+      title:       bestTitle || `New opening at ${company.name}`,
+      description: bestDesc  || `${company.name} has posted new career information.`,
+      applyLink:   allJobLinks[0]?.url || company.careerLink || '',
+      applyLinks:  allJobLinks.map(l => l.url).slice(0, 6),
+      applyLabels: allJobLinks.map(l => l.label).slice(0, 6),
+      detectedAt:  new Date(),
+    };
+    company.updates.unshift(newUpdate);
+    if (company.updates.length > 50) company.updates.length = 50;
   }
 
   company.lastContent = currentContent;
@@ -137,10 +150,10 @@ async function sendDigest(user, companies, updates) {
           <p style="color:#6b7280;font-size:13px;margin:0 0 12px">${u.description}</p>
           ${u.applyLinks && u.applyLinks.length > 1
             ? u.applyLinks.map((link, i) => {
-                const name = link.split('/').pop().split('?')[0] || `Document ${i + 1}`;
+                const label = (u.applyLabels && u.applyLabels[i]) ? u.applyLabels[i] : `Document ${i + 1}`;
                 const isPdf = link.toLowerCase().includes('.pdf');
                 return `<a href="${link}" style="display:inline-block;margin:4px;padding:8px 16px;background:#ede9fe;color:#6366f1;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">
-                  ${isPdf ? '📄' : '📎'} ${name}
+                  ${isPdf ? '📄' : '📎'} ${label}
                 </a>`;
               }).join('')
             : u.applyLink
@@ -185,17 +198,6 @@ function pageSimilarity(a, b) {
   const setB = new Set(b.toLowerCase().split(/\s+/));
   const common = [...setA].filter(x => setB.has(x)).length;
   return common / Math.max(setA.size, setB.size, 1);
-}
-
-function extractJobSentences(oldContent, newContent) {
-  const old = oldContent.toLowerCase();
-  return newContent
-    .split(/[.\n!?]/)
-    .map(s => s.trim())
-    .filter(s => s.length > 20 && s.length < 200)
-    .filter(s => JOB_KEYWORDS.some(k => s.toLowerCase().includes(k)))
-    .filter(s => !old.includes(s.toLowerCase().slice(0, 30)))
-    .slice(0, 2);
 }
 
 module.exports = { checkCompany, runDailyCheck };
