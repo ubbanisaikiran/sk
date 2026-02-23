@@ -18,7 +18,6 @@ async function checkCompany(company) {
   let combinedContent = '';
   const allJobLinks = [];
 
-  // Check BOTH links
   for (const url of urls) {
     try {
       const res = await axios.get(url, {
@@ -30,21 +29,23 @@ async function checkCompany(company) {
       $('script, style, nav, footer, header, noscript').remove();
       combinedContent += $('body').text().replace(/\s+/g, ' ').trim().slice(0, 4000);
 
-      // Collect job links + PDF/doc links
+      // Collect PDF, doc and job links
       $('a').each((_, el) => {
         const href = $(el).attr('href');
-        const text = $(el).text().trim().toLowerCase();
-        const isPdf = href?.toLowerCase().endsWith('.pdf');
-        const isDoc = href?.toLowerCase().endsWith('.doc') || href?.toLowerCase().endsWith('.docx');
-        const isJobLink = href && JOB_KEYWORDS.some(k => text.includes(k));
+        const text = $(el).text().trim();
+        if (!href) return;
 
-        if (href && (isPdf || isDoc || isJobLink)) {
-          try {
-            const fullUrl = href.startsWith('http') ? href : new URL(href, url).href;
-            if (!allJobLinks.includes(fullUrl)) {
-              allJobLinks.push(fullUrl);
-            }
-          } catch { }
+        const fullUrl = href.startsWith('http') ? href : (() => {
+          try { return new URL(href, url).href; } catch { return null; }
+        })();
+        if (!fullUrl) return;
+
+        const isPdf  = fullUrl.toLowerCase().includes('.pdf');
+        const isDoc  = fullUrl.toLowerCase().match(/\.(doc|docx)$/);
+        const isJob  = JOB_KEYWORDS.some(k => text.toLowerCase().includes(k));
+
+        if ((isPdf || isDoc || isJob) && !allJobLinks.includes(fullUrl)) {
+          allJobLinks.push(fullUrl);
         }
       });
 
@@ -61,7 +62,6 @@ async function checkCompany(company) {
 
   const currentContent = combinedContent.slice(0, 6000);
 
-  // Detect changes
   const changed = company.lastContent
     ? pageSimilarity(company.lastContent, currentContent) < 0.93
     : true;
@@ -71,13 +71,15 @@ async function checkCompany(company) {
     const sentences = extractJobSentences(company.lastContent || '', currentContent);
     if (sentences.length > 0 || (!company.lastContent && allJobLinks.length > 0)) {
       newUpdate = {
-        title:       `New update from ${company.name}`,
-        description: sentences.length
-          ? sentences.slice(0, 3).join(' — ')
-          : `${company.name} has posted new career information.`,
-        applyLink:   allJobLinks[0] || company.careerLink || '',
-        applyLinks:  allJobLinks.slice(0, 5),
-        detectedAt:  new Date(),
+        title: sentences.length
+          ? sentences[0].slice(0, 100)
+          : `New opening at ${company.name}`,
+        description: sentences.length > 1
+          ? sentences.slice(1).join(' · ')
+          : `${company.name} has posted new career information. Check the links below.`,
+        applyLink:  allJobLinks[0] || company.careerLink || '',
+        applyLinks: allJobLinks.slice(0, 5),
+        detectedAt: new Date(),
       };
       company.updates.unshift(newUpdate);
       if (company.updates.length > 50) company.updates.length = 50;
@@ -134,10 +136,13 @@ async function sendDigest(user, companies, updates) {
           <h3 style="margin:0 0 8px;font-size:15px">${u.title}</h3>
           <p style="color:#6b7280;font-size:13px;margin:0 0 12px">${u.description}</p>
           ${u.applyLinks && u.applyLinks.length > 1
-            ? u.applyLinks.map((link, i) => `
-                <a href="${link}" style="display:inline-block;margin:4px;padding:8px 16px;background:#ede9fe;color:#6366f1;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">
-                  📄 ${link.split('/').pop() || `Document ${i + 1}`}
-                </a>`).join('')
+            ? u.applyLinks.map((link, i) => {
+                const name = link.split('/').pop().split('?')[0] || `Document ${i + 1}`;
+                const isPdf = link.toLowerCase().includes('.pdf');
+                return `<a href="${link}" style="display:inline-block;margin:4px;padding:8px 16px;background:#ede9fe;color:#6366f1;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">
+                  ${isPdf ? '📄' : '📎'} ${name}
+                </a>`;
+              }).join('')
             : u.applyLink
               ? `<a href="${u.applyLink}" style="display:inline-block;padding:8px 20px;background:#6366f1;color:#fff;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">Apply Now →</a>`
               : ''
@@ -187,10 +192,10 @@ function extractJobSentences(oldContent, newContent) {
   return newContent
     .split(/[.\n!?]/)
     .map(s => s.trim())
-    .filter(s => s.length > 40)
+    .filter(s => s.length > 20 && s.length < 200)
     .filter(s => JOB_KEYWORDS.some(k => s.toLowerCase().includes(k)))
-    .filter(s => !old.includes(s.toLowerCase().slice(0, 40)))
-    .slice(0, 5);
+    .filter(s => !old.includes(s.toLowerCase().slice(0, 30)))
+    .slice(0, 2);
 }
 
 module.exports = { checkCompany, runDailyCheck };

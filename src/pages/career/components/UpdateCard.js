@@ -18,6 +18,8 @@ export default function UpdateCard({ update, onStatusChange }) {
     setSaving(false);
   };
 
+  const hasMultipleLinks = update.applyLinks && update.applyLinks.length > 1;
+
   return (
     <div className={`career-update-card ${status !== 'fresh' ? 'career-update-card--' + status : ''}`}>
       <div className="career-update-card__header">
@@ -34,31 +36,37 @@ export default function UpdateCard({ update, onStatusChange }) {
       <div className="career-update-card__desc">{update.description}</div>
 
       <div className="career-update-card__actions">
-        {update.applyLinks && update.applyLinks.length > 1 ? (
-  <div className="career-update-card__files">
-    <p className="career-update-card__files-label">📎 Available Downloads:</p>
-    {update.applyLinks.map((link, i) => (
-      <a
-        key={i}
-        href={link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="career-update-card__file-btn"
-      >
-        📄 {link.split('/').pop() || `Document ${i + 1}`}
-      </a>
-    ))}
-  </div>
-) : update.applyLink ? (
-  <a
-    href={update.applyLink}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="career-btn career-btn--primary career-update-card__apply"
-  >
-    Apply Now →
-  </a>
-) : null}
+
+        {hasMultipleLinks ? (
+          <div className="career-update-card__files">
+            <p className="career-update-card__files-label">📎 Downloads</p>
+            {update.applyLinks.map((link, i) => {
+              const raw = link.split('/').pop().split('?')[0];
+              const name = raw.length > 40 ? raw.slice(0, 40) + '...' : raw || `Document ${i + 1}`;
+              const isPdf = link.toLowerCase().includes('.pdf');
+              return (
+                <a
+                  key={i}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="career-update-card__file-btn"
+                >
+                  {isPdf ? '📄' : '📎'} {name}
+                </a>
+              );
+            })}
+          </div>
+        ) : update.applyLink ? (
+          
+          <a href={update.applyLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="career-btn career-btn--primary career-update-card__apply"
+          >
+            Apply Now →
+          </a>
+        ) : null}
 
         <button
           className={`career-btn ${status === 'applied' ? 'career-btn--success' : 'career-btn--ghost'}`}
@@ -73,8 +81,9 @@ export default function UpdateCard({ update, onStatusChange }) {
           onClick={() => handleStatus(status === 'thinking' ? 'fresh' : 'thinking')}
           disabled={saving}
         >
-          🤔 {status === 'thinking' ? 'Thinking' : 'Thinking'}
+          🤔 Thinking
         </button>
+
       </div>
     </div>
   );
