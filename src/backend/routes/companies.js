@@ -57,10 +57,16 @@ router.get('/updates', authMW, async (req, res) => {
     for (const c of companies) {
       for (const u of c.updates) {
         updates.push({
-          ...u.toObject(),
-          company: c.name,
-          companyId: c._id,
-          type: c.type,
+          _id:         u._id,
+          title:       u.title,
+          description: u.description,
+          applyLink:   u.applyLink,
+          applyLinks:  u.applyLinks || [],
+          status:      u.status,
+          detectedAt:  u.detectedAt,
+          company:     c.name,
+          companyId:   c._id,
+          type:        c.type,
         });
       }
     }
