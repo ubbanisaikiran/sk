@@ -2,14 +2,22 @@ const nodemailer = require('nodemailer');
 
 let _transport = null;
 
+
+
 function transport() {
   if (_transport) return _transport;
   _transport = nodemailer.createTransport({
-    service: process.env.MAIL_SERVICE || 'gmail',
+    service: 'gmail',
     auth: {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
   });
   return _transport;
 }

@@ -16,7 +16,7 @@ router.get('/', authMW, async (req, res) => {
 // POST /api/companies
 router.post('/', authMW, async (req, res) => {
   try {
-    const { name, announceLink, careerLink } = req.body;
+    const { name, type, announceLink, careerLink } = req.body;
     if (!name?.trim()) return res.status(400).json({ message: 'Company name is required' });
 
    const company = await Company.create({
