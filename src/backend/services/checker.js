@@ -8,21 +8,25 @@ const JOB_KEYWORDS = [
   'opening', 'hiring', 'vacancy', 'apply', 'position',
   'recruit', 'deadline', 'notification', 'result',
   'admit card', 'walk-in', 'interview', 'shortlist',
+  'advertisement', 'recruitment', 'application', 'post',
 ];
 
 const NAV_WORDS = [
   'home', 'about', 'contact', 'login', 'logout', 'menu',
   'skip', 'accessibility', 'hindi', 'english', 'sitemap',
   'feedback', 'help', 'search', 'close', 'open', 'toggle',
+  'a+', 'a-', 'grayscale',
 ];
 
 async function checkCompany(company) {
+  // Check BOTH links always
   const urls = [company.announceLink, company.careerLink].filter(u => u?.trim());
   if (!urls.length) return null;
 
   const allJobLinks = [];
   let bestTitle = '';
   let bestDesc  = '';
+  let combinedFingerprint = '';
 
   for (const url of urls) {
     try {
@@ -33,23 +37,22 @@ async function checkCompany(company) {
 
       const $ = cheerio.load(res.data);
 
-      // Remove all noise aggressively
+      // Aggressively remove noise
       $('script, style, noscript').remove();
       $('nav, header, footer').remove();
       $('[class*="nav"], [class*="menu"], [class*="header"], [class*="footer"]').remove();
       $('[class*="accessibility"], [class*="toolbar"], [class*="breadcrumb"]').remove();
-      $('[class*="social"], [class*="share"], [class*="skip"]').remove();
+      $('[class*="social"], [class*="share"], [class*="skip"], [class*="cookie"]').remove();
       $('[id*="nav"], [id*="menu"], [id*="header"], [id*="footer"]').remove();
 
-      // Collect all meaningful links
+      // Collect PDF / doc / job links
       $('a').each((_, el) => {
         const href = $(el).attr('href');
         const text = $(el).text().trim();
-        if (!href || text.length < 3) return;
+        if (!href || text.length < 3 || text.length > 150) return;
 
-        // Skip nav words
-        if (NAV_WORDS.some(w => text.toLowerCase() === w)) return;
-        if (text.length < 4 || text.length > 120) return;
+        // Skip pure nav labels
+        if (NAV_WORDS.some(w => text.toLowerCase().trim() === w)) return;
 
         const fullUrl = href.startsWith('http') ? href : (() => {
           try { return new URL(href, url).href; } catch { return null; }
@@ -65,7 +68,7 @@ async function checkCompany(company) {
         }
       });
 
-      // Find best title
+      // Best title from content headings
       if (!bestTitle) {
         $('h1, h2, h3, h4').each((_, el) => {
           const t = $(el).text().trim();
@@ -79,7 +82,7 @@ async function checkCompany(company) {
         });
       }
 
-      // Find best job description
+      // Best description from job rows
       if (!bestDesc) {
         $('td, li, p').each((_, el) => {
           const text = $(el).text().replace(/\s+/g, ' ').trim();
@@ -87,13 +90,15 @@ async function checkCompany(company) {
             text.length > 40 &&
             text.length < 300 &&
             JOB_KEYWORDS.some(k => text.toLowerCase().includes(k)) &&
-            !text.toLowerCase().match(/^(date|s\.?no|sr\.?no|download|sl)/i)
+            !text.toLowerCase().match(/^(date|s\.?no|sr\.?no|download|sl|closing)/i)
           ) {
             bestDesc = text.slice(0, 220);
             return false;
           }
         });
       }
+
+      combinedFingerprint += allJobLinks.map(l => l.url).join(',');
 
     } catch (err) {
       console.warn(`[checker] Could not fetch ${url}: ${err.message}`);
@@ -106,7 +111,7 @@ async function checkCompany(company) {
     return null;
   }
 
-  const currentContent = allJobLinks.map(l => l.url).join(',') + bestDesc;
+  const currentContent = combinedFingerprint + bestDesc;
 
   const changed = company.lastContent
     ? pageSimilarity(company.lastContent, currentContent) < 0.93

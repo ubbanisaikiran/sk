@@ -6,12 +6,12 @@ import { companyAPI } from './services/api';
 
 export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
   const [companies, setCompanies] = useState([]);
-  const [updates, setUpdates] = useState([]);
-  const [form, setForm] = useState({ name: '', type: 'private', announceLink: '', careerLink: '' });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const [updates, setUpdates]     = useState([]);
+  const [form, setForm]           = useState({ name: '', type: 'private', announceLink: '', careerLink: '' });
+  const [error, setError]         = useState('');
+  const [success, setSuccess]     = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [checking, setChecking]   = useState(false);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -48,9 +48,7 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
     try {
       await companyAPI.remove(id);
       setCompanies(prev => prev.filter(c => c._id !== id));
-    } catch (e) {
-      setError(e.message);
-    }
+    } catch (e) { setError(e.message); }
   };
 
   const handleCheckNow = async () => {
@@ -59,9 +57,7 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
       await companyAPI.checkNow();
       const u = await companyAPI.getUpdates();
       setUpdates(u.updates || []);
-    } catch (e) {
-      setError(e.message);
-    }
+    } catch (e) { setError(e.message); }
     setChecking(false);
   };
 
@@ -77,22 +73,13 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
       <div className="career-tracker__header">
         <div>
           <h1 className="career-tracker__title">📡 Company Tracker</h1>
-          <p className="career-tracker__sub">
-            Auto-checked daily at <strong>6:30 AM IST</strong>
-          </p>
+          <p className="career-tracker__sub">Auto-checked daily at <strong>6:30 AM IST</strong></p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            className="career-btn career-btn--success"
-            onClick={handleCheckNow}
-            disabled={checking}
-          >
+          <button className="career-btn career-btn--success" onClick={handleCheckNow} disabled={checking}>
             {checking ? '⏳ Checking...' : '🔄 Check Now'}
           </button>
-          <button
-            className="career-btn career-btn--ghost"
-            onClick={() => navigate(PAGES.HOME)}
-          >
+          <button className="career-btn career-btn--ghost" onClick={() => navigate(PAGES.HOME)}>
             ← Back
           </button>
         </div>
@@ -104,6 +91,7 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
           <div className="career-card">
             <h2 className="career-card__title">Add Company to Track</h2>
             <div className="career-card__fields">
+
               <InputField
                 label="Company Name *"
                 value={form.name}
@@ -111,7 +99,6 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
                 placeholder="e.g. Google, TCS, CEL"
               />
 
-              {/* Type toggle */}
               <div className="career-input-wrap">
                 <label className="career-input-label">Company Type</label>
                 <div className="career-type-toggle">
@@ -178,10 +165,8 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
                       <div className="career-company-item__name">
                         {c.name}
                         <span style={{
-                          marginLeft: '8px',
-                          fontSize: '10px',
-                          padding: '2px 8px',
-                          borderRadius: '20px',
+                          marginLeft: '8px', fontSize: '10px',
+                          padding: '2px 8px', borderRadius: '20px',
                           background: c.type === 'govt' ? 'rgba(234,179,8,0.15)' : 'rgba(99,102,241,0.15)',
                           color: c.type === 'govt' ? '#fbbf24' : '#a5b4fc',
                           fontFamily: 'monospace',
@@ -193,16 +178,11 @@ export default function CompanyTracker({ user, onLogout, navigate, PAGES }) {
                         {c.careerLink
                           ? <a href={c.careerLink} target="_blank" rel="noopener noreferrer" className="career-link">Career Page ↗</a>
                           : 'No career link'}
-                        {' · Last checked: '}
-                        {c.lastChecked
-                          ? new Date(c.lastChecked).toLocaleDateString('en-IN')
-                          : 'Never'}
+                        {' · '}
+                        {c.lastChecked ? new Date(c.lastChecked).toLocaleDateString('en-IN') : 'Never checked'}
                       </div>
                     </div>
-                    <button
-                      className="career-btn career-btn--danger-ghost"
-                      onClick={() => handleRemove(c._id)}
-                    >
+                    <button className="career-btn career-btn--danger-ghost" onClick={() => handleRemove(c._id)}>
                       Remove
                     </button>
                   </div>

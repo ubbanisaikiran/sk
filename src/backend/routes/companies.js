@@ -3,7 +3,6 @@ const authMW  = require('../middleware/auth');
 const Company = require('../models/Company');
 const { checkCompany } = require('../services/checker');
 
-// GET /api/companies
 router.get('/', authMW, async (req, res) => {
   try {
     const companies = await Company.find({ userId: req.userId }).sort({ createdAt: -1 });
@@ -13,7 +12,6 @@ router.get('/', authMW, async (req, res) => {
   }
 });
 
-// POST /api/companies
 router.post('/', authMW, async (req, res) => {
   try {
     const { name, type, announceLink, careerLink } = req.body;
@@ -22,7 +20,7 @@ router.post('/', authMW, async (req, res) => {
     const company = await Company.create({
       userId:       req.userId,
       name:         name.trim(),
-      type:         type || 'private',
+      type:         type === 'govt' ? 'govt' : 'private',
       announceLink: announceLink?.trim() || '',
       careerLink:   careerLink?.trim()   || '',
     });
@@ -35,7 +33,6 @@ router.post('/', authMW, async (req, res) => {
   }
 });
 
-// DELETE /api/companies/:id
 router.delete('/:id', authMW, async (req, res) => {
   try {
     const deleted = await Company.findOneAndDelete({ _id: req.params.id, userId: req.userId });
@@ -46,7 +43,6 @@ router.delete('/:id', authMW, async (req, res) => {
   }
 });
 
-// GET /api/companies/updates
 router.get('/updates', authMW, async (req, res) => {
   try {
     const companies = await Company.find({ userId: req.userId });
@@ -77,7 +73,6 @@ router.get('/updates', authMW, async (req, res) => {
   }
 });
 
-// POST /api/companies/check
 router.post('/check', authMW, async (req, res) => {
   try {
     const companies = await Company.find({ userId: req.userId }).select('+lastContent');
@@ -88,7 +83,6 @@ router.post('/check', authMW, async (req, res) => {
   }
 });
 
-// PATCH /api/companies/:companyId/updates/:updateId
 router.patch('/:companyId/updates/:updateId', authMW, async (req, res) => {
   try {
     const { status } = req.body;
