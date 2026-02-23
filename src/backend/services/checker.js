@@ -18,6 +18,13 @@ const NAV_WORDS = [
   'a+', 'a-', 'grayscale',
 ];
 
+const NO_VACANCY_PHRASES = [
+  'no vacancies', 'no current openings', 'no openings available',
+  'currently there are no', 'no posts available', 'no positions available',
+  'check back later', 'no active recruitment', 'no recruitment',
+  'no job openings', 'no current vacancies',
+];
+
 // ── Check a single company ────────────────────────────────────
 async function checkCompany(company) {
   const urls = [company.announceLink, company.careerLink].filter(u => u?.trim());
@@ -29,6 +36,7 @@ async function checkCompany(company) {
   let bestTitle = '';
   let bestDesc  = '';
   let combinedFingerprint = '';
+  let anyVacancyFound = false;
 
   for (const url of urls) {
     console.log(`[checker] Fetching: ${url}`);
@@ -40,17 +48,38 @@ async function checkCompany(company) {
 
       const $ = cheerio.load(res.data);
 
-      // Remove all noise
+     // Check for no-vacancy signals
+const fullText = $('body').text().replace(/\s+/g, ' ').toLowerCase();
+const noVacancy = NO_VACANCY_PHRASES.some(p => fullText.includes(p));
+
+// Also check if job table exists but has no data rows
+const tables = $('table');
+let emptyJobTable = false;
+tables.each((_, table) => {
+  const tableText = $(table).text().toLowerCase();
+  const hasJobHeader = JOB_KEYWORDS.some(k => tableText.includes(k));
+  const rows = $(table).find('tbody tr');
+  if (hasJobHeader && rows.length <= 1) {
+    emptyJobTable = true;
+  }
+});
+
+if (noVacancy || emptyJobTable) {
+  console.log(`[checker] ${url} → No vacancy detected (phrase:${noVacancy}, emptyTable:${emptyJobTable}), skipping`);
+  combinedFingerprint += url + ':no-vacancy|';
+  continue;
+}
+
+      // Remove noise
       $('script, style, noscript').remove();
       $('nav, header, footer').remove();
-      $('[class*="nav"], [class*="menu"], [class*="header"], [class*="footer"]').remove();
-      $('[class*="accessibility"], [class*="toolbar"], [class*="breadcrumb"]').remove();
-      $('[class*="social"], [class*="share"], [class*="skip"], [class*="cookie"]').remove();
-      $('[id*="nav"], [id*="menu"], [id*="header"], [id*="footer"]').remove();
+      $('[class*="nav"],[class*="menu"],[class*="header"],[class*="footer"]').remove();
+      $('[class*="accessibility"],[class*="toolbar"],[class*="breadcrumb"]').remove();
+      $('[class*="social"],[class*="share"],[class*="skip"],[class*="cookie"]').remove();
+      $('[id*="nav"],[id*="menu"],[id*="header"],[id*="footer"]').remove();
 
       let urlLinks = 0;
 
-      // Collect PDF / doc / job links
       $('a').each((_, el) => {
         const href = $(el).attr('href');
         const text = $(el).text().trim();
@@ -66,9 +95,17 @@ async function checkCompany(company) {
         const isDoc = !!fullUrl.toLowerCase().match(/\.(doc|docx)$/);
         const isJob = JOB_KEYWORDS.some(k => text.toLowerCase().includes(k));
 
+        // For PDFs/docs — only include if surrounding context has job keywords
+        if (isPdf || isDoc) {
+          const parent = $(el).closest('tr, li, div, section, article').text().toLowerCase();
+          const contextIsJob = JOB_KEYWORDS.some(k => parent.includes(k));
+          if (!contextIsJob) return;
+        }
+
         if ((isPdf || isDoc || isJob) && !allJobLinks.find(l => l.url === fullUrl)) {
           allJobLinks.push({ url: fullUrl, label: text });
           urlLinks++;
+          anyVacancyFound = true;
         }
       });
 
@@ -110,16 +147,17 @@ async function checkCompany(company) {
     }
   }
 
-  console.log(`[checker] Total links for ${company.name}: ${allJobLinks.length}`);
+  console.log(`[checker] Total links for ${company.name}: ${allJobLinks.length}, vacancyFound: ${anyVacancyFound}`);
 
-  if (allJobLinks.length === 0 && !bestDesc) {
+  // Only create update if actual job content found
+  if (!anyVacancyFound && !bestDesc) {
+    console.log(`[checker] ${company.name} → No real openings, skipping update`);
     company.lastChecked = new Date();
     await company.save();
     return null;
   }
 
   const currentContent = combinedFingerprint + bestDesc;
-
   const changed = company.lastContent
     ? pageSimilarity(company.lastContent, currentContent) < 0.93
     : true;

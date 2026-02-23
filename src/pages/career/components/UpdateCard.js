@@ -40,7 +40,7 @@ export default function UpdateCard({ update, onStatusChange }) {
             </div>
           </div>
           <span className={`uc__status uc__status--${status}`}>
-            {status === 'applied' ? '✅ Applied' : status === 'thinking' ? '🤔 Thinking' : '🔔 New'}
+            {status === 'applied' ? '✅ Applied' : status === 'thinki' ? '🤔 Thinking' : '🔔 New'}
           </span>
         </div>
 
