@@ -27,43 +27,66 @@ async function checkCompany(company) {
       });
 
       const $ = cheerio.load(res.data);
-      $('script, style, nav, footer, header, noscript, .nav, .menu, .breadcrumb').remove();
 
-      // Collect PDF/doc/job links with their label
+      // Aggressively remove noise
+      $('script, style, nav, footer, header, noscript').remove();
+      $('[class*="nav"], [class*="menu"], [class*="breadcrumb"]').remove();
+      $('[class*="accessibility"], [class*="toolbar"], [id*="toolbar"]').remove();
+      $('[class*="skip"], [class*="social"], [class*="share"]').remove();
+
+      // Find PDF/doc/job links with meaningful labels
       $('a').each((_, el) => {
-        const href = $(el).attr('href');
-        const text = $(el).text().trim();
-        if (!href || !text) return;
+        const href  = $(el).attr('href');
+        const text  = $(el).text().trim();
+        if (!href || text.length < 3) return;
+
+        // Skip nav-like labels
+        const navWords = ['home', 'about', 'contact', 'login', 'logout', 'menu', 'skip', 'accessibility', 'hindi', 'english'];
+        if (navWords.some(w => text.toLowerCase().includes(w))) return;
 
         const fullUrl = href.startsWith('http') ? href : (() => {
           try { return new URL(href, url).href; } catch { return null; }
         })();
         if (!fullUrl) return;
 
-        const isPdf  = fullUrl.toLowerCase().includes('.pdf');
-        const isDoc  = !!fullUrl.toLowerCase().match(/\.(doc|docx)$/);
-        const isJob  = JOB_KEYWORDS.some(k => text.toLowerCase().includes(k));
+        const isPdf = fullUrl.toLowerCase().includes('.pdf');
+        const isDoc = !!fullUrl.toLowerCase().match(/\.(doc|docx)$/);
+        const isJob = JOB_KEYWORDS.some(k => text.toLowerCase().includes(k));
 
         if ((isPdf || isDoc || isJob) && !allJobLinks.find(l => l.url === fullUrl)) {
-          allJobLinks.push({ url: fullUrl, label: text.slice(0, 60) });
+          allJobLinks.push({ url: fullUrl, label: text.slice(0, 80) });
         }
       });
 
-      // Extract clean title
-      const pageTitle = $('h1, h2, h3').first().text().trim().slice(0, 100);
-      if (pageTitle && !bestTitle) bestTitle = pageTitle;
-
-      // Find best job description row
+      // Find meaningful job rows — skip short table headers
       const jobRows = [];
-      $('tr, li, p').each((_, el) => {
+      $('td, li, p').each((_, el) => {
         const text = $(el).text().replace(/\s+/g, ' ').trim();
+        // Must be meaningful sentence, not a header
         if (
-          text.length > 20 && text.length < 300 &&
-          JOB_KEYWORDS.some(k => text.toLowerCase().includes(k))
+          text.length > 30 &&
+          text.length < 300 &&
+          JOB_KEYWORDS.some(k => text.toLowerCase().includes(k)) &&
+          !text.toLowerCase().includes('date of') &&
+          !text.toLowerCase().includes('s.no') &&
+          !/^\d+$/.test(text)
         ) {
           jobRows.push(text);
         }
       });
+
+      // Pick best title — from actual content headings, not page title
+      if (!bestTitle) {
+        $('h1, h2, h3, h4').each((_, el) => {
+          const t = $(el).text().trim();
+          const navWords = ['accessibility', 'menu', 'nav', 'toolbar', 'skip'];
+          if (t.length > 10 && t.length < 120 && !navWords.some(w => t.toLowerCase().includes(w))) {
+            bestTitle = t;
+            return false;
+          }
+        });
+      }
+
       if (jobRows.length > 0 && !bestDesc) {
         bestDesc = jobRows[0].slice(0, 200);
       }
@@ -89,7 +112,7 @@ async function checkCompany(company) {
   if (changed) {
     newUpdate = {
       title:       bestTitle || `New opening at ${company.name}`,
-      description: bestDesc  || `${company.name} has posted new career information.`,
+      description: bestDesc  || `${company.name} has posted new career information. Check the downloads below.`,
       applyLink:   allJobLinks[0]?.url || company.careerLink || '',
       applyLinks:  allJobLinks.map(l => l.url).slice(0, 6),
       applyLabels: allJobLinks.map(l => l.label).slice(0, 6),
