@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const BASE_URL = process.env.REACT_APP_API_URL || 'https://sk-production-dca4.up.railway.app/api';
 
 const getToken = () => localStorage.getItem('sk_career_token');
 
