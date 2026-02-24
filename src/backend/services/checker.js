@@ -65,19 +65,28 @@ function extractCoreData($, baseUrl) {
 
   $('a').each((_, el) => {
     const href = $(el).attr('href') || '';
+    const onclick = $(el).attr('onclick') || '';
     const rawText = $(el).text().replace(/\s+/g, ' ').trim();
     
-    if (!href || href.startsWith('#')) return;
-    if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+    // Check if the link is a hidden JS trigger (very common in Govt sites)
+    const isJsTrigger = href.startsWith('#') || href.toLowerCase().includes('javascript:');
+    const hasDownloadAction = onclick.toLowerCase().includes('download') || onclick.toLowerCase().includes('file') || onclick.toLowerCase().includes('open');
+
+    // If it's a completely dead link with no onclick, THEN we skip it
+    if (isJsTrigger && !hasDownloadAction && rawText.length < 3) return;
     
-    const isJobRelated = JOB_KEYWORDS.some(k => href.toLowerCase().includes(k) || rawText.toLowerCase().includes(k));
-    const isDocument = /\.(pdf|doc|docx)$/i.test(href) || /download|attachment|getfile/i.test(href);
+    // Skip social media and generic phone/mail links
+    if (!isJsTrigger && SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+    
+    const isJobRelated = JOB_KEYWORDS.some(k => href.toLowerCase().includes(k) || rawText.toLowerCase().includes(k) || onclick.toLowerCase().includes(k));
+    const isDocument = /\.(pdf|doc|docx)$/i.test(href) || /download|attachment|getfile/i.test(href) || hasDownloadAction;
 
     if (isJobRelated || isDocument) {
       try {
-        const fullUrl = new URL(href, baseUrl).href;
-        // Avoid duplicate links
-        if (!links.some(l => l.url === fullUrl)) {
+        // If it's a JS trigger, we just save the page URL so the user knows where to go to click it
+        const fullUrl = isJsTrigger ? baseUrl : new URL(href, baseUrl).href;
+        
+        if (!links.some(l => l.label === rawText)) {
           links.push({ url: fullUrl, label: rawText || 'View Document/Apply' });
         }
       } catch (e) { /* ignore invalid URLs */ }
