@@ -1,295 +1,476 @@
-const axios   = require('axios');
-const cheerio = require('cheerio');
-const Company = require('../models/Company');
-const User    = require('../models/User');
+const axios    = require('axios');
+const cheerio  = require('cheerio');
+const Company  = require('../models/Company');
+const User     = require('../models/User');
 const { sendMail } = require('./mailer');
 
-// ── Keywords that mark the OPENINGS SECTION ───────────────────
-const OPENING_SECTION_TITLES = [
-  'current opening', 'current opportunit', 'current vacancies',
-  'current recruitment', 'current position', 'active opening',
-  'active job', 'open position', 'open role', 'job opening',
-  'career opportunit', 'latest opening', 'new opening',
-  'available position', 'job listing', 'job posting',
-  'recruitment notification', 'advertisement', 'notification',
-  'apply now', 'ongoing recruitment',
-  // Hindi
-  'वर्तमान रिक्तियां', 'भर्ती', 'रिक्ति',
+// ── Constants ─────────────────────────────────────────────────
+
+const JOB_KEYWORDS = [
+  'opening', 'hiring', 'vacancy', 'vacancies', 'position',
+  'recruit', 'deadline', 'notification', 'result', 'admit card',
+  'walk-in', 'interview', 'shortlist', 'advertisement',
+  'recruitment', 'application', 'post', 'last date', 'closing date',
+  'no. of post', 'qualification', 'experience required',
+  'job description', 'responsibilities', 'requirements',
+  'full time', 'part time', 'remote', 'hybrid', 'fresher',
 ];
 
-// ── Signals that section is EMPTY / has no real jobs ─────────
-const EMPTY_SIGNALS = [
-  'no vacancies', 'no current openings', 'no openings',
-  'currently there are no', 'no posts available',
-  'no positions available', 'check back later',
-  'no active recruitment', 'no job openings',
-  'no current vacancies', 'kindly check back later',
-  'no open positions', 'no open roles', 'no jobs found',
-  'no results found', 'no recruitment',
-  'at present no vacancy', 'no data available',
-  // Hindi
+const JOB_CONTEXT_SIGNALS = [
+  'vacancy', 'vacancies', 'post', 'qualification', 'experience',
+  'last date', 'closing date', 'apply', 'notification', 'recruitment',
+  'advertisement', 'corrigendum', 'result', 'shortlist',
+  'job description', 'responsibilities', 'location', 'salary',
+  'package', 'lpa', 'ctc', 'fresher', 'remote', 'hybrid',
+];
+
+const SKIP_LINK_TEXTS = [
+  'know more', 'view all', 'read more', 'click here', 'home', 'about',
+  'contact', 'login', 'logout', 'register', 'sign in', 'sign up',
+  'personal loan', 'home loan', 'car loan', 'education loan', 'gold loan',
+  'savings account', 'fixed deposit', 'credit card', 'debit card',
+  'insurance', 'mutual fund', 'locate us', 'branches', 'atm',
+  'sitemap', 'privacy', 'disclaimer', 'terms', 'cookie', 'faq',
+  'feedback', 'grievance', 'complaint', 'customer support',
+  'skip to', 'accessibility', 'screen reader', 'hindi', 'english',
+  'a+', 'a-', 'download app', 'play store', 'app store',
+  'follow us', 'share', 'tweet', 'like', 'subscribe',
+];
+
+const SKIP_URL_PATTERNS = [
+  'play.google.com', 'apps.apple.com', 'facebook.com', 'twitter.com',
+  'linkedin.com/company', 'youtube.com', 'instagram.com', 'whatsapp.com',
+  'javascript:', 'mailto:', 'tel:', '#',
+  'netbanking', 'internetbanking', 'onlinebanking',
+  'bobcrm', 'pmsuryaghar', 'vidyalakshmi', 'pmvidyalaxmi',
+  'calculator', 'emi-calc', 'fd-calc',
+  'locate-us', '/branches', '/atm', '/faqs', '/contact',
+  '/sitemap', '/privacy', '/disclaimer', '/terms',
+  'outlook.com', 'intranet', 'medibuddy',
+  // Insurance & financial product apply links — NOT job links
+  'indiafirstlife.com', 'indiafirst', 'lifeinsurance',
+  'buyonline', 'applyonline', 'onlineapply',
+  'loanapply', 'applyloan', 'loan-apply', 'apply-loan',
+  'cardapply', 'applycard', 'apply-card',
+  'pmsuryaghar', 'pmvidyalaxmi', 'vidyalakshmi',
+  'pmjdy', 'mudra', 'standupmitra',
+  'dil.bank', 'dil2.bank', 'feba.bob', 'bobprepaid',
+  'barodaetrade', 'mfs.kfintech', 'kfintech',
+  'nsdl.com', 'cra.kfintech', 'mynps',
+  'bobworld', 'bobworldetrade',
+  'smarttrade', 'diginext',
+  'cms.rbi', 'sachet.rbi', 'rbi.org',
+  'india.gov.in', 'sancharsaathi', 'cybercrime.gov',
+  'bobcards.com', 'bobcard.co',
+  'barodabnpparibasmf', 'infradebt', 'bgss.in',
+];
+
+const NO_VACANCY_PHRASES = [
+  'no vacancies', 'no current openings', 'no openings available',
+  'currently there are no vacancies', 'no posts available',
+  'no positions available', 'check back later', 'no active recruitment',
+  'no job openings', 'no current vacancies', 'kindly check back later',
+  'no recruitment', 'at present no vacancy', 'no open positions',
+  'no open roles', 'no jobs found', 'no results found',
   'कोई रिक्तियां नहीं', 'कोई पद नहीं', 'वर्तमान में कोई',
 ];
 
-// ── URLs that are NEVER job links ─────────────────────────────
-const SKIP_URLS = [
-  'javascript:', 'mailto:', 'tel:', '#',
-  'facebook.com', 'twitter.com', 'linkedin.com/company',
-  'youtube.com', 'instagram.com', 'whatsapp.com',
-  'play.google.com', 'apps.apple.com',
-  'login', 'signin', 'signup', 'register',
-  'privacy', 'disclaimer', 'terms', 'cookie',
-  'sitemap', 'contact', '/faq', '/help',
-  'locate-us', '/branches', '/atm',
-  'calculator', 'emi', 'fd-calc',
-  'indiafirstlife', 'buyonline', 'insurance-apply',
-  'loanapply', 'loan-apply', 'applyloan',
-  'pmsuryaghar', 'vidyalakshmi', 'pmvidyalaxmi',
-  'kfintech', 'nsdl.com', 'rbi.org',
-  'bobcrm', 'bobibanking', 'bobcard',
-  'dil.bank', 'dil2.bank',
+// ── ATS Detection ─────────────────────────────────────────────
+// Many companies use these platforms — we extract jobs directly
+
+const ATS_PATTERNS = [
+  {
+    name: 'Workday',
+    detect: url => url.includes('myworkdayjobs.com') || url.includes('wd3.myworkday') || url.includes('wd5.myworkday'),
+    extract: async (url) => {
+      // Workday API endpoint pattern
+      const match = url.match(/https?:\/\/([^/]+\.myworkday(?:jobs)?\.com)\/([^/]+)/);
+      if (!match) return null;
+      const apiUrl = `${match[0]}/fs/searchableJobs?limit=20&offset=0&format=json`;
+      try {
+        const res = await axios.get(apiUrl, { timeout: 10000 });
+        const jobs = res.data?.jobPostings || [];
+        return jobs.slice(0, 6).map(j => ({
+          url: `${match[0]}/job/${j.externalPath || j.title}`,
+          label: j.title,
+          score: 10,
+        }));
+      } catch { return null; }
+    },
+  },
+  {
+    name: 'Greenhouse',
+    detect: url => url.includes('boards.greenhouse.io') || url.includes('greenhouse.io/embed'),
+    extract: async (url) => {
+      const match = url.match(/greenhouse\.io\/(?:embed\/job_board\?for=|)([a-zA-Z0-9_-]+)/);
+      if (!match) return null;
+      try {
+        const res = await axios.get(`https://boards-api.greenhouse.io/v1/boards/${match[1]}/jobs?content=true`, { timeout: 10000 });
+        const jobs = res.data?.jobs || [];
+        return jobs.slice(0, 6).map(j => ({
+          url: j.absolute_url,
+          label: j.title,
+          score: 10,
+        }));
+      } catch { return null; }
+    },
+  },
+  {
+    name: 'Lever',
+    detect: url => url.includes('jobs.lever.co'),
+    extract: async (url) => {
+      const match = url.match(/jobs\.lever\.co\/([a-zA-Z0-9_-]+)/);
+      if (!match) return null;
+      try {
+        const res = await axios.get(`https://api.lever.co/v0/postings/${match[1]}?mode=json`, { timeout: 10000 });
+        const jobs = Array.isArray(res.data) ? res.data : [];
+        return jobs.slice(0, 6).map(j => ({
+          url: j.hostedUrl,
+          label: j.text,
+          score: 10,
+        }));
+      } catch { return null; }
+    },
+  },
+  {
+    name: 'Taleo',
+    detect: url => url.includes('taleo.net'),
+    extract: async (url) => {
+      // Taleo uses org-specific URLs — just return the URL itself as the apply link
+      return [{ url, label: 'View Openings on Taleo', score: 8 }];
+    },
+  },
+  {
+    name: 'SmartRecruiters',
+    detect: url => url.includes('careers.smartrecruiters.com'),
+    extract: async (url) => {
+      const match = url.match(/smartrecruiters\.com\/([a-zA-Z0-9_-]+)/);
+      if (!match) return null;
+      try {
+        const res = await axios.get(`https://api.smartrecruiters.com/v1/companies/${match[1]}/postings?limit=10`, { timeout: 10000 });
+        const jobs = res.data?.content || [];
+        return jobs.slice(0, 6).map(j => ({
+          url: `https://careers.smartrecruiters.com/${match[1]}/${j.id}`,
+          label: j.name,
+          score: 10,
+        }));
+      } catch { return null; }
+    },
+  },
+  {
+    name: 'iCIMS',
+    detect: url => url.includes('icims.com'),
+    extract: async (url) => {
+      return [{ url, label: 'View Openings', score: 8 }];
+    },
+  },
 ];
 
-// ── Step 1: Find the openings section in page ─────────────────
-function findOpeningsSection($) {
-  let bestSection = null;
-  let bestScore   = 0;
+// ── Universal link scorer ─────────────────────────────────────
+// Domains that are NEVER job application destinations
+const NON_JOB_DOMAINS = [
+  'indiafirstlife.com', 'buyonline', 'lifeinsure', 'generalinsure',
+   'kfintech', 'csdl.com', 'bse', 'nse',
+  'bobcard', 'creditcard', 'debitcard',
+  'loanapply', 'applyloan', 'emiloan',
+];
 
-  // Look through headings to find the openings section
-  $('h1, h2, h3, h4, h5, section[class], div[class], div[id]').each((_, el) => {
-    const text = $(el).text().replace(/\s+/g, ' ').trim().toLowerCase();
-    const id   = ($(el).attr('id')   || '').toLowerCase();
-    const cls  = ($(el).attr('class') || '').toLowerCase();
-    const combined = text + ' ' + id + ' ' + cls;
+// URL path patterns that ARE job destinations
+const JOB_URL_PATHS = [
+  '/job', '/jobs', '/career', '/careers', '/recruit', '/recruitment',
+  '/vacancy', '/vacancies', '/opening', '/openings', '/hiring',
+  '/apply', '/notification', '/advertisement', '/circular',
+  'ibps', 'ssc.nic', 'ncs.gov', 'upsc', 'nta.ac.in',
+  'crpd', 'bankingcareer', 'careerportal',
+];
 
-    const matchCount = OPENING_SECTION_TITLES.filter(t => combined.includes(t)).length;
-    if (matchCount > 0 && matchCount > bestScore) {
-      bestScore   = matchCount;
-      bestSection = el;
+function scoreLink(linkText, linkUrl, contextText) {
+  if (!linkText || linkText.length < 3) return -1;
+  if (SKIP_LINK_TEXTS.some(s => linkText.toLowerCase().includes(s))) return -1;
+  if (SKIP_URL_PATTERNS.some(p => linkUrl.toLowerCase().includes(p))) return -1;
+  if (NON_JOB_DOMAINS.some(d => linkUrl.toLowerCase().includes(d))) return -1;
+
+  let score = 0;
+  const ctx = contextText.toLowerCase();
+  const txt = linkText.toLowerCase();
+  const url = linkUrl.toLowerCase();
+
+  // Strong signals — file types
+  if (url.includes('.pdf'))        score += 4;
+  if (url.match(/\.(doc|docx)$/)) score += 3;
+
+  // URL path looks like a job/career URL — strong positive
+  const isJobUrl = JOB_URL_PATHS.some(p => url.includes(p));
+  if (isJobUrl) score += 4;
+
+  // Link text matches job keywords
+  if (JOB_KEYWORDS.some(k => txt.includes(k))) score += 4;
+
+  // Context signals
+  const contextSignals = JOB_CONTEXT_SIGNALS.filter(s => ctx.includes(s)).length;
+  score += Math.min(contextSignals, 5);
+
+  // "Apply Now" — ONLY score high if URL is clearly a job URL
+  // Otherwise penalize heavily — it's probably a product CTA
+  if (txt === 'apply now' || txt === 'apply') {
+    if (isJobUrl) {
+      score += 4;
+    } else {
+      // "Apply Now" on non-job URL = product CTA, reject
+      return -1;
     }
-  });
-
-  if (!bestSection) return null;
-
-  // Get the container — either the element itself or its parent section
-  const $el = $(bestSection);
-  const tagName = bestSection.tagName?.toLowerCase();
-
-  // If it's a heading, grab the parent container
-  if (['h1','h2','h3','h4','h5'].includes(tagName)) {
-    // Try to get the surrounding section/article/div
-    const parent = $el.closest('section, article, .card, [class*="career"], [class*="job"], [class*="opening"]');
-    if (parent.length) return parent;
-
-    // Otherwise get next siblings until next heading
-    const container = $el.parent();
-    return container.length ? container : null;
   }
 
-  return $el;
+  // Known job portals
+  const jobPortals = ['ibps', 'ssc.nic', 'ncs.gov', 'upsc', 'nta.ac.in', 'employment'];
+  if (jobPortals.some(p => url.includes(p))) score += 3;
+
+  return score;
 }
 
-// ── Step 2: Check if section has real content ─────────────────
-function sectionHasRealContent($, section) {
-  const text = $(section).text().replace(/\s+/g, ' ').toLowerCase();
+// ── Fetch page HTML (with JS fallback) ───────────────────────
+async function fetchHTML(url) {
+  // First try fast axios fetch
+  try {
+    const res = await axios.get(url, {
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
+    const html = res.data;
 
-  // Check for empty signals
-  if (EMPTY_SIGNALS.some(e => text.includes(e))) {
-    console.log('[checker] Section has empty signal');
-    return false;
+    // Check if page has meaningful content or is mostly JS shell
+    const $ = cheerio.load(html);
+    const bodyText = $('body').text().replace(/\s+/g, ' ').trim();
+
+    // If page has enough text content, use it
+    if (bodyText.length > 500) {
+      return { html, method: 'axios' };
+    }
+
+    // Page is likely JS-rendered — try puppeteer
+    return await fetchWithPuppeteer(url);
+  } catch (err) {
+    console.warn(`[fetcher] axios failed for ${url}: ${err.message}`);
+    return await fetchWithPuppeteer(url);
   }
-
-  // Must have some links or table rows or list items
-  const links    = $(section).find('a').length;
-  const rows     = $(section).find('tr').length;
-  const items    = $(section).find('li').length;
-  const hasLinks = links > 0 || rows > 1 || items > 0;
-
-  // Must have reasonable text length beyond just a heading
-  const textLength = text.trim().length;
-
-  console.log(`[checker] Section check — links:${links} rows:${rows} items:${items} textLen:${textLength}`);
-  return hasLinks && textLength > 80;
 }
 
-// ── Step 3: Extract links from the section ────────────────────
-function extractLinksFromSection($, section, baseUrl) {
-  const links = [];
+async function fetchWithPuppeteer(url) {
+  try {
+    let chromium, puppeteer;
+    try {
+      chromium  = require('@sparticuz/chromium');
+      puppeteer = require('puppeteer-core');
+    } catch {
+      console.warn('[fetcher] Puppeteer not available');
+      return null;
+    }
 
-  $(section).find('a').each((_, el) => {
-    const href  = $(el).attr('href');
-    const text  = $(el).text().replace(/\s+/g, ' ').trim();
-    if (!href || text.length < 2) return;
+    const browser = await puppeteer.launch({
+      args:            chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath:  await chromium.executablePath(),
+      headless:        chromium.headless,
+    });
 
-    // Skip bad URLs
-    if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 25000 });
+
+    // Wait for job listings to appear
+    await page.waitForTimeout(2000);
+
+    const html = await page.content();
+    await browser.close();
+    console.log(`[fetcher] Puppeteer succeeded for ${url}`);
+    return { html, method: 'puppeteer' };
+  } catch (err) {
+    console.warn(`[fetcher] Puppeteer failed for ${url}: ${err.message}`);
+    return null;
+  }
+}
+
+// ── Extract jobs from HTML ────────────────────────────────────
+function extractFromHTML(html, baseUrl) {
+  const $ = cheerio.load(html);
+  const scoredLinks = [];
+  let bestTitle = '';
+  let bestDesc  = '';
+
+  // Remove noise
+  $('script, style, noscript').remove();
+  $('nav, header, footer').remove();
+  $('[class*="nav"],[class*="menu"],[class*="header"],[class*="footer"]').remove();
+  $('[class*="accessibility"],[class*="toolbar"],[class*="breadcrumb"]').remove();
+  $('[class*="social"],[class*="share"],[class*="skip"],[class*="cookie"]').remove();
+  $('[class*="sidebar"],[class*="widget"],[class*="banner"],[class*="popup"]').remove();
+  $('[id*="nav"],[id*="menu"],[id*="header"],[id*="footer"],[id*="sidebar"]').remove();
+
+  // Score every link
+  $('a').each((_, el) => {
+    const href = $(el).attr('href');
+    const text = $(el).text().trim();
+    if (!href) return;
 
     const fullUrl = href.startsWith('http') ? href : (() => {
       try { return new URL(href, baseUrl).href; } catch { return null; }
     })();
     if (!fullUrl) return;
-    if (SKIP_URLS.some(p => fullUrl.toLowerCase().includes(p))) return;
 
-    // Avoid duplicates
-    if (!links.find(l => l.url === fullUrl)) {
-      links.push({ url: fullUrl, label: text || 'View Details' });
+    const context = $(el)
+      .closest('tr, li, div, section, article, td')
+      .text()
+      .replace(/\s+/g, ' ')
+      .slice(0, 600);
+
+    const score = scoreLink(text, fullUrl, context);
+    if (score >= 3) {
+      const existing = scoredLinks.find(l => l.url === fullUrl);
+      if (!existing) {
+        scoredLinks.push({ url: fullUrl, label: text, score });
+      } else if (score > existing.score) {
+        existing.score = score;
+        existing.label = text;
+      }
     }
   });
 
-  return links;
-}
-
-// ── Extract description from section ─────────────────────────
-function extractDescription($, section) {
-  let desc = '';
-  $(section).find('p, li, td, h5, h6').each((_, el) => {
-    const text = $(el).text().replace(/\s+/g, ' ').trim();
-    if (text.length > 30 && text.length < 300) {
-      desc = text.slice(0, 220);
+  // Extract title
+  $('h1, h2, h3, h4').each((_, el) => {
+    const t = $(el).text().trim();
+    const tLow = t.toLowerCase();
+    if (
+      t.length > 8 && t.length < 150 &&
+      !SKIP_LINK_TEXTS.some(s => tLow.includes(s)) &&
+      (JOB_KEYWORDS.some(k => tLow.includes(k)) || tLow.includes('current') || tLow.includes('career') || tLow.includes('opportunit'))
+    ) {
+      if (!bestTitle) bestTitle = t;
       return false;
     }
   });
-  return desc;
+
+  // Extract description
+  $('p, li, td').each((_, el) => {
+    const text = $(el).text().replace(/\s+/g, ' ').trim();
+    if (
+      text.length > 40 && text.length < 300 &&
+      JOB_KEYWORDS.some(k => text.toLowerCase().includes(k)) &&
+      !text.toLowerCase().match(/^(date|s\.?no|sr\.?no|download|sl\.?no|closing|serial)/i)
+    ) {
+      if (!bestDesc) bestDesc = text.slice(0, 220);
+      return false;
+    }
+  });
+
+  return { scoredLinks, bestTitle, bestDesc };
 }
 
-// ── Extract title from section ────────────────────────────────
-function extractTitle($, section) {
-  const heading = $(section).find('h1,h2,h3,h4,h5').first().text().trim();
-  if (heading.length > 5 && heading.length < 150) return heading;
-  return '';
-}
-
-// ── Main fetch + check ────────────────────────────────────────
-async function fetchAndCheck(url) {
-  try {
-    const res = await axios.get(url, {
-      timeout: 20000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-    });
-
-    const $ = cheerio.load(res.data);
-
-    // Remove global noise first
-    $('script, style, noscript').remove();
-    $('nav, header, footer').remove();
-    $('[class*="navbar"],[class*="topbar"],[class*="sidenav"]').remove();
-    $('[class*="accessibility"],[class*="toolbar"],[class*="breadcrumb"]').remove();
-    $('[class*="social"],[class*="share"],[class*="cookie"],[class*="popup"]').remove();
-    $('[id*="nav"],[id*="header"],[id*="footer"],[id*="sidebar"]').remove();
-
-    return $;
-  } catch (err) {
-    console.warn(`[checker] Fetch failed for ${url}: ${err.message}`);
-    return null;
-  }
-}
-
-// ── Check a single company ────────────────────────────────────
+// ── Main check function ───────────────────────────────────────
 async function checkCompany(company) {
   const urls = [company.announceLink, company.careerLink].filter(u => u?.trim());
   if (!urls.length) return null;
 
-  console.log(`\n[checker] ═══ ${company.name} ═══`);
-  console.log(`[checker] URLs: ${urls.join(', ')}`);
+  console.log(`[checker] Scanning ${company.name} — ${urls.length} URL(s):`, urls);
 
-  let allLinks   = [];
-  let bestTitle  = '';
-  let bestDesc   = '';
-  let fingerprint = '';
-  let foundContent = false;
+  let allScoredLinks = [];
+  let bestTitle      = '';
+  let bestDesc       = '';
+  let combinedFP     = '';
+  let hasContent     = false;
 
   for (const url of urls) {
-    console.log(`[checker] → Fetching: ${url}`);
+    console.log(`[checker] Processing: ${url}`);
 
-    const $ = await fetchAndCheck(url);
-    if (!$) continue;
-
-    // ── Step 1: Find the openings section ──────────────────
-    const section = findOpeningsSection($);
-
-    if (!section) {
-      console.log(`[checker] No openings section found on ${url}`);
-
-      // Fallback: check if full page body has empty signals
-      const bodyText = $('body').text().toLowerCase();
-      if (EMPTY_SIGNALS.some(e => bodyText.includes(e))) {
-        console.log(`[checker] Page has no vacancy signal`);
-        fingerprint += url + ':empty|';
+    // ── Check ATS first ──────────────────────────────────────
+    const ats = ATS_PATTERNS.find(a => a.detect(url));
+    if (ats) {
+      console.log(`[checker] Detected ATS: ${ats.name}`);
+      const atsLinks = await ats.extract(url);
+      if (atsLinks && atsLinks.length > 0) {
+        allScoredLinks.push(...atsLinks);
+        hasContent = true;
+        if (!bestTitle) bestTitle = `${company.name} — Open Positions`;
+        if (!bestDesc) bestDesc = `${atsLinks.length} open position(s) found on ${ats.name}.`;
+        combinedFP += url + ':ats:' + atsLinks.map(l => l.url).join(',') + '|';
         continue;
       }
+    }
 
-      // Fallback: grab any PDF links from the page
-      const fallbackLinks = [];
-      $('a').each((_, el) => {
-        const href = $(el).attr('href') || '';
-        const text = $(el).text().trim();
-        if (
-          (href.toLowerCase().includes('.pdf') || href.toLowerCase().match(/\.(doc|docx)$/)) &&
-          !SKIP_URLS.some(p => href.toLowerCase().includes(p)) &&
-          text.length > 2
-        ) {
-          const fullUrl = href.startsWith('http') ? href : (() => {
-            try { return new URL(href, url).href; } catch { return null; }
-          })();
-          if (fullUrl && !fallbackLinks.find(l => l.url === fullUrl)) {
-            fallbackLinks.push({ url: fullUrl, label: text });
-          }
-        }
-      });
+    // ── Fetch HTML ───────────────────────────────────────────
+    const result = await fetchHTML(url);
+    if (!result) {
+      console.warn(`[checker] Could not fetch ${url}`);
+      continue;
+    }
 
-      if (fallbackLinks.length > 0) {
-        console.log(`[checker] Fallback: found ${fallbackLinks.length} PDFs`);
-        allLinks.push(...fallbackLinks);
-        foundContent = true;
-        fingerprint += url + ':pdf:' + fallbackLinks.map(l => l.url).join(',') + '|';
-      } else {
-        fingerprint += url + ':no-section|';
+    // ── No vacancy check ─────────────────────────────────────
+    const $ = cheerio.load(result.html);
+    const rawText = $('body').text().replace(/\s+/g, ' ').toLowerCase();
+
+    if (NO_VACANCY_PHRASES.some(p => rawText.includes(p))) {
+      console.log(`[checker] ${url} → No vacancy signal, skipping`);
+      combinedFP += url + ':no-vacancy|';
+      continue;
+    }
+
+    // ── Empty job table check ────────────────────────────────
+    let emptyTable = false;
+    $('table').each((_, table) => {
+      const tText = $(table).text().toLowerCase();
+      const hasJobHeader = JOB_CONTEXT_SIGNALS.some(s => tText.includes(s));
+      if (hasJobHeader && $(table).find('tbody tr').length === 0) emptyTable = true;
+    });
+    if (emptyTable) {
+      console.log(`[checker] ${url} → Empty job table, skipping`);
+      combinedFP += url + ':empty-table|';
+      continue;
+    }
+
+    // ── Extract from HTML ────────────────────────────────────
+    const { scoredLinks, bestTitle: t, bestDesc: d } = extractFromHTML(result.html, url);
+
+    console.log(`[checker] ${url} [${result.method}] → ${scoredLinks.length} links`);
+
+    if (scoredLinks.length > 0) hasContent = true;
+    if (!bestTitle && t) bestTitle = t;
+    if (!bestDesc  && d) bestDesc  = d;
+
+    // Merge links
+    for (const link of scoredLinks) {
+      const existing = allScoredLinks.find(l => l.url === link.url);
+      if (!existing) {
+        allScoredLinks.push(link);
+      } else if (link.score > existing.score) {
+        existing.score = link.score;
+        existing.label = link.label;
       }
-      continue;
     }
 
-    console.log(`[checker] ✓ Found openings section`);
-
-    // ── Step 2: Check if section has real content ───────────
-    if (!sectionHasRealContent($, section)) {
-      console.log(`[checker] ✗ Section is empty — no real openings`);
-      fingerprint += url + ':section-empty|';
-      continue;
-    }
-
-    console.log(`[checker] ✓ Section has content`);
-
-    // ── Step 3: Extract links, title, description ───────────
-    const sectionLinks = extractLinksFromSection($, section, url);
-    const title        = extractTitle($, section);
-    const desc         = extractDescription($, section);
-
-    console.log(`[checker] ✓ Extracted ${sectionLinks.length} links`);
-
-    if (sectionLinks.length > 0 || desc) {
-      foundContent = true;
-      allLinks.push(...sectionLinks.filter(l => !allLinks.find(x => x.url === l.url)));
-      if (!bestTitle && title) bestTitle = title;
-      if (!bestDesc  && desc)  bestDesc  = desc;
-      fingerprint += url + ':' + sectionLinks.map(l => l.url).join(',') + '|';
-    }
+    combinedFP += url + ':' + scoredLinks.map(l => l.url).join(',') + '|';
   }
 
-  const topLinks = allLinks.slice(0, 6);
+  // Sort by score, take top 6
+  allScoredLinks.sort((a, b) => b.score - a.score);
+  const topLinks = allScoredLinks.slice(0, 6);
 
-  console.log(`[checker] ${company.name} → Final: ${topLinks.length} links, content: ${foundContent}`);
+  console.log(`[checker] ${company.name} → Final: ${topLinks.length} links, hasContent: ${hasContent}`);
+  if (topLinks.length) {
+    console.log(`[checker] Top links:`, topLinks.map(l => `[${l.score}] ${l.label}`));
+  }
 
-  if (!foundContent && !bestDesc) {
-    console.log(`[checker] ${company.name} → SKIP — no real openings found\n`);
+  if (!hasContent && !bestDesc) {
+    console.log(`[checker] ${company.name} → No real job content, skipping`);
     company.lastChecked = new Date();
     await company.save();
     return null;
   }
 
-  const currentContent = fingerprint + bestDesc;
+  const currentContent = combinedFP + bestDesc;
   const changed = company.lastContent
     ? pageSimilarity(company.lastContent, currentContent) < 0.93
     : true;
