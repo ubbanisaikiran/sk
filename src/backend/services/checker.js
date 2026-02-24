@@ -5,7 +5,7 @@ const User    = require('../models/User');
 const { sendMail } = require('./mailer');
 
 // ─────────────────────────────────────────────────────────────
-// CONSTANTS
+// CONSTANTS (Updated with Government/PSU specific terms)
 // ─────────────────────────────────────────────────────────────
 
 const OPENING_SECTION_TITLES = [
@@ -40,6 +40,9 @@ const JOB_CONTEXT = [
   'registration', 'link for', 'due date', 'published',
   'click here for details', 'direct recruitment',
   'scheme', 'syllabus',
+  // NEW: Government & PSU specific context
+  'advertisement no', 'advt. no', 'employment notice', 'walk-in',
+  'contractual', 'engagement', 'pay scale', 'stipend'
 ];
 
 const JOB_LINK_TEXT = [
@@ -49,6 +52,10 @@ const JOB_LINK_TEXT = [
   'details', 'view details', 'download',
   'scheme', 'syllabus', 'recruitment', 'vacancy',
   'know more', 'read more',
+  // NEW: Specific terms used by MeitY, BSNL, etc.
+  'detailed advertisement', 'vacancy circular', 'engagement of', 
+  'indicative notice', 'application format', 'click here for result/career',
+  'archive', 'portal', 'recruitment portal'
 ];
 
 const JOB_URL_PATTERNS = [
@@ -87,7 +94,6 @@ const NOISE_SELECTORS = [
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 async function smartFetch(url) {
-  // Layer 1: Fast axios
   try {
     const res  = await axios.get(url, {
       timeout: 15000,
@@ -105,8 +111,6 @@ async function smartFetch(url) {
   } catch (e) {
     console.warn(`[fetch] axios failed: ${e.message}`);
   }
-
-  // Layer 2: Puppeteer for JS-rendered pages
   return puppeteerFetch(url);
 }
 
@@ -155,7 +159,30 @@ function removeNoise($) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// WORKING 4-STEP HELPERS (preserved exactly)
+// LABEL IMPROVER (Sibling Title Discovery)
+// ─────────────────────────────────────────────────────────────
+
+function getImprovedLabel($, el, rawText) {
+  let label = rawText;
+  // If the link text is very generic or short, look around it for a better title
+  if (label.length < 15) {
+    // 1. Try to get the first column of the current table row
+    const rowText = $(el).closest('tr').find('td, th').first().text().replace(/\s+/g, ' ').trim();
+    if (rowText && rowText.length > 5 && rowText !== label) {
+      return rowText.slice(0, 100);
+    }
+    // 2. Try to get text from the parent list item
+    const liText = $(el).closest('li').text().replace(/\s+/g, ' ').trim();
+    if (liText && liText.length > 5 && liText !== label) {
+      // Remove the generic text so it's not repeated
+      return liText.replace(label, '').trim().slice(0, 100) || label;
+    }
+  }
+  return label;
+}
+
+// ─────────────────────────────────────────────────────────────
+// WORKING 4-STEP HELPERS
 // ─────────────────────────────────────────────────────────────
 
 function pageIsEmpty($) {
@@ -179,8 +206,9 @@ function findOpeningsSection($) {
   if (!bestEl) return null;
   const tag = bestEl.tagName?.toLowerCase();
   if (['h1','h2','h3','h4','h5'].includes(tag)) {
+    // NEW: Added [class*="content"] and [id*="content"] for MeitY style cards/wrappers
     const parent = $(bestEl).closest(
-      'section, article, [class*="career"], [class*="job"], [class*="opening"], [class*="opportunit"], [class*="vacancy"], [class*="recruit"]'
+      'section, article, [class*="career"], [class*="job"], [class*="opening"], [class*="opportunit"], [class*="vacancy"], [class*="recruit"], [class*="content"], [id*="content"]'
     );
     if (parent.length) return parent;
     return $(bestEl).parent();
@@ -248,33 +276,45 @@ function hasJobContext($, el) {
 function extractFromSection($, section, pageUrl) {
   const links = [];
   const jobTable = findJobTable($, section);
+  
   if (jobTable) {
     console.log('[checker] Job table — tbody only');
     $(jobTable).find('tbody tr').each((_, row) => {
       $(row).find('a').each((_, el) => {
         const href = $(el).attr('href') || '';
-        const text = $(el).text().replace(/\s+/g, ' ').trim();
-        if (!href || href === '#' || href.startsWith('#') || text.length < 2) return;
+        const rawText = $(el).text().replace(/\s+/g, ' ').trim();
+        if (!href || href === '#' || href.startsWith('#') || rawText.length < 2) return;
         if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+        
         const fullUrl = href.startsWith('http') ? href : (() => {
           try { return new URL(href, pageUrl).href; } catch { return null; }
         })();
         if (!fullUrl || isNavLink(fullUrl, pageUrl)) return;
-        if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label: text });
+        
+        // NEW: Grab improved label if text is short
+        const label = getImprovedLabel($, el, rawText);
+        
+        if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label });
       });
     });
     return links;
   }
+  
   $(section).find('a').each((_, el) => {
     const href = $(el).attr('href') || '';
-    const text = $(el).text().replace(/\s+/g, ' ').trim();
-    if (!href || href === '#' || href.startsWith('#') || text.length < 2) return;
+    const rawText = $(el).text().replace(/\s+/g, ' ').trim();
+    if (!href || href === '#' || href.startsWith('#') || rawText.length < 2) return;
     if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+    
     const fullUrl = href.startsWith('http') ? href : (() => {
       try { return new URL(href, pageUrl).href; } catch { return null; }
     })();
     if (!fullUrl || isNavLink(fullUrl, pageUrl)) return;
-    if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label: text });
+    
+    // NEW: Grab improved label
+    const label = getImprovedLabel($, el, rawText);
+    
+    if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label });
   });
   return links;
 }
@@ -294,29 +334,36 @@ function collectDocLinks($el, baseUrl, $) {
   } else {
     searchIn = $('a');
   }
+  
   searchIn.each((_, el) => {
     const href    = $(el).attr('href') || '';
     const rawText = $(el).text().replace(/\s+/g, ' ').trim();
     const text    = rawText.toLowerCase();
     if (!href || href === '#' || href.startsWith('#')) return;
     if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+    
     const isDocUrl  = DOC_URL.some(p => href.toLowerCase().includes(p));
     const isDocText = DOC_TEXT.some(t => text.includes(t));
     if (!isDocUrl && !isDocText) return;
     if (!hasJobContext($, el)) { console.log(`   [skip no-ctx] ${rawText}`); return; }
+    
     const fullUrl = href.startsWith('http') ? href : (() => {
       try { return new URL(href, baseUrl).href; } catch { return null; }
     })();
     if (!fullUrl) return;
     if (SKIP_URLS.some(p => fullUrl.toLowerCase().includes(p))) return;
     if (isNavLink(fullUrl, baseUrl)) return;
-    if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label: rawText || 'View Document' });
+    
+    // NEW: Apply improved label fetching for doc links too
+    const label = getImprovedLabel($, el, rawText) || 'View Document';
+    
+    if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label });
   });
   return links;
 }
 
 // ─────────────────────────────────────────────────────────────
-// UNIVERSAL LINK SCORER — fallback for BSNL/MeitY/SEBI/BOB etc.
+// UNIVERSAL LINK SCORER — Enhanced for BSNL/MeitY etc.
 // ─────────────────────────────────────────────────────────────
 
 function scoreLink(href, linkText, contextText) {
@@ -324,22 +371,39 @@ function scoreLink(href, linkText, contextText) {
   const url  = href.toLowerCase();
   const text = linkText.toLowerCase().trim();
   const ctx  = contextText.toLowerCase();
+  
   if (!href || href === '#' || href.startsWith('#')) return -1;
   if (['javascript:', 'mailto:', 'tel:'].some(p => href.startsWith(p))) return -1;
   if (text.length < 2) return -1;
   if (SKIP_URLS.some(p => url.includes(p))) return -1;
+  
   // URL signals
   if (url.includes('.pdf'))                              score += 8;
   if (url.match(/\.(doc|docx)$/))                        score += 7;
   if (JOB_URL_PATTERNS.some(p => url.includes(p)))       score += 4;
+  
+  // NEW: Heavy weight for notification/advt in URL
+  if (url.includes('advertisement') || url.includes('notice') || url.includes('notification')) score += 5;
+
   // Link text signals
   if (JOB_LINK_TEXT.some(t => text.includes(t)))         score += 4;
-  if (text.includes('apply'))                             score += 3;
+  if (text.includes('apply'))                            score += 3;
   if (text.includes('notification') || text.includes('advertisement')) score += 3;
   if (text.includes('vacancy') || text.includes('recruitment'))        score += 3;
+
   // Context signals
   const ctxHits = JOB_CONTEXT.filter(k => ctx.includes(k)).length;
   score += Math.min(ctxHits * 2, 10);
+  
+  // NEW: Context Boost for generic links inside a job area
+  const contextKeywords = ['recruitment', 'vacancy', 'post', 'officer', 'engineer', 'trainee'];
+  if (contextKeywords.some(k => ctx.includes(k))) {
+    score += 5; // Context boost
+    if (['click here', 'download', 'view', 'details'].some(t => text.includes(t))) {
+      score += 5; // Extra boost if it's a generic download link next to job text
+    }
+  }
+
   // Date in context = strong signal
   if (ctx.match(/\d{2}[.\-/]\d{2}[.\-/]\d{4}/) || ctx.match(/\d{4}-\d{2}-\d{2}/)) score += 2;
   return score;
@@ -353,20 +417,27 @@ function universalScorer($, pageUrl) {
     const context = $(el)
       .closest('tr, li, article, [class*="card"], div, section')
       .first().text().replace(/\s+/g, ' ').slice(0, 600);
+      
     const score = scoreLink(href, rawText, context);
     if (score < 3) return;
+    
     const fullUrl = href.startsWith('http') ? href : (() => {
       try { return new URL(href, pageUrl).href; } catch { return null; }
     })();
     if (!fullUrl) return;
     if (isNavLink(fullUrl, pageUrl)) return;
+    
+    // NEW: Get improved label using sibling context
+    const label = getImprovedLabel($, el, rawText) || 'View Details';
+
     const existing = scored.find(l => l.url === fullUrl);
     if (existing) {
-      if (score > existing.score) { existing.score = score; existing.label = rawText; }
+      if (score > existing.score) { existing.score = score; existing.label = label; }
     } else {
-      scored.push({ url: fullUrl, label: rawText || 'View Details', score });
+      scored.push({ url: fullUrl, label, score });
     }
   });
+  
   scored.sort((a, b) => b.score - a.score);
   console.log(`[scorer] ${scored.length} links scored ≥3`);
   scored.slice(0, 6).forEach(l => console.log(`   [${l.score}] ${l.label} → ${l.url}`));
@@ -409,7 +480,7 @@ function extractDesc($, section) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MAIN CHECK — 4-step + universal scorer fallback
+// MAIN CHECK
 // ─────────────────────────────────────────────────────────────
 
 async function checkCompany(company) {
@@ -428,7 +499,6 @@ async function checkCompany(company) {
     const $ = await smartFetch(url);
     if (!$) { fingerprint += url + ':fetch-failed|'; continue; }
 
-    // STEP 1: Full page empty check (catches Balmer Lawrie "no vacancies")
     if (pageIsEmpty($)) {
       console.log(`[checker] ✗ STEP 1 — No vacancies`);
       fingerprint += url + ':no-vacancy|';
@@ -436,7 +506,6 @@ async function checkCompany(company) {
     }
     console.log(`[checker] ✓ STEP 1 — Page has content`);
 
-    // STEP 2: Find named openings section (CEL "Career Opportunity", BOB "Current Opportunities")
     const section = findOpeningsSection($);
 
     if (section && section.length) {
@@ -445,7 +514,6 @@ async function checkCompany(company) {
       if (sectionHasRealContent($, section)) {
         console.log(`[checker] ✓ STEP 3 — Section has real content`);
 
-        // STEP 4: Extract from job table or full section
         const sectionLinks = extractFromSection($, section, url);
         const title = extractTitle($, section);
         const desc  = extractDesc($, section);
@@ -460,13 +528,11 @@ async function checkCompany(company) {
           fingerprint += url + ':section:' + sectionLinks.map(l => l.url).join(',') + '|';
           continue;
         }
-        // Section has text but links are JS-rendered — fall through to scorer
         console.log(`[checker] ~ Section links empty — falling to scorer`);
         if (!bestTitle && title) bestTitle = title;
         if (!bestDesc  && desc)  bestDesc  = desc;
 
       } else {
-        // Section found but empty — try doc links inside it
         const sectionDocs = collectDocLinks(section, url, $);
         if (sectionDocs.length > 0) {
           console.log(`[checker] ✓ STEP 3 doc fallback — ${sectionDocs.length} docs`);
@@ -481,7 +547,6 @@ async function checkCompany(company) {
       }
 
     } else {
-      // No named section — try doc/PDF links first
       const docs = collectDocLinks(null, url, $);
       if (docs.length > 0) {
         console.log(`[checker] ~ STEP 2 doc fallback — ${docs.length} docs`);
@@ -495,8 +560,6 @@ async function checkCompany(company) {
       console.log(`[checker] ~ No section, no docs — falling to scorer`);
     }
 
-    // UNIVERSAL SCORER FALLBACK
-    // Handles: BSNL table, MeitY cards, BOB JS-rendered, SEBI portal, any modern site
     const scored = universalScorer($, url);
     const title  = extractTitle($, null);
     const desc   = extractDesc($, null);
@@ -509,7 +572,6 @@ async function checkCompany(company) {
       if (!bestDesc  && desc)  bestDesc  = desc;
       fingerprint += url + ':scored:' + scored.map(l => l.url).join(',') + '|';
     } else {
-      // Absolute last resort — page confirmed has content (passed STEP 1)
       console.log(`[checker] ~ Last resort — using page URL`);
       foundContent = true;
       if (!bestTitle) bestTitle = title || `Opportunities at ${company.name}`;
@@ -558,7 +620,7 @@ async function checkCompany(company) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// DAILY CHECK — sequential to avoid Puppeteer memory issues
+// DAILY CHECK
 // ─────────────────────────────────────────────────────────────
 
 async function runDailyCheck() {
@@ -594,7 +656,7 @@ async function runDailyCheck() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// EMAIL DIGEST (unchanged)
+// EMAIL DIGEST
 // ─────────────────────────────────────────────────────────────
 
 async function sendDigest(user, companies, updates) {
