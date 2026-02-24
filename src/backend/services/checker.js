@@ -1,42 +1,9 @@
-/**
- * SK Career Upstep — Universal Scraper
- *
- * Covers all Indian PSU / Bank / Cooperative career portals:
- *
- * TYPE A  ASP.NET / Static HTML tables (.aspx, .asp, .html)
- *         BPCL, RBI, NABARD, PNB, BEL, CONCOR, IRCTC, KRIBHCO
- *         → axios fetch → job table detection → extract tbody rows
- *
- * TYPE B  Govt NIC-style, PDF-heavy
- *         ONGC, OIL, ISRO, DRDO, BARC, CSIR, NIC, IOCL, HPCL, Coal India
- *         → axios fetch → PDF/doc link with job context
- *
- * TYPE C  Corporate CMS (Drupal/WordPress/custom)
- *         HAL, POWERGRID, PFC, REC, EIL, NMDC, NBCC, RVNL,
- *         IREDA, NALCO, SIDBI, IFFCO, NAFED, GAIL
- *         → axios fetch → named section → extract links
- *
- * TYPE D  JS-rendered / React / Angular / ATS portals
- *         BHEL careers.bhel.in, NTPC careers.ntpc.co.in,
- *         SAIL sailcareers.com, Amul careers.amul.com,
- *         SEBI, SBI, IBPS, BOB, Canara, Union Bank
- *         → Puppeteer → scored link extraction
- */
-
 const axios   = require('axios');
 const cheerio = require('cheerio');
 const Company = require('../models/Company');
 const User    = require('../models/User');
 const { sendMail } = require('./mailer');
 
-// ─────────────────────────────────────────────────────────────
-// CONSTANTS — tuned for Indian govt/PSU sites
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Heading / ID / class text that indicates a "jobs" section.
- * Sorted roughly by specificity — more specific first.
- */
 const SECTION_KEYWORDS = [
   // Specific
   'current opening', 'current opportunit', 'current vacanc',
