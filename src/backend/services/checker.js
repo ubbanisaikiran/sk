@@ -104,11 +104,56 @@ async function checkCompany(company) {
   console.log(`\n[checker] ══════════════════════════════`);
   console.log(`[checker] Scanning: ${company.name} -> ${url}`);
 
-  const $ = await fetchRenderedPage(url);
-  if (!$) {
-    console.log(`[checker] ✗ Could not load page.`);
+  async function fetchRenderedPage(url) {
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({ ignoreHTTPSErrors: true });
+    const page = await context.newPage();
+    
+    // 1. Go to the page and wait for the basic DOM to load
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    
+    // 2. The Golden Rule for Govt Sites: Force a 5-second hard wait.
+    // Their APIs and databases are slow. Give the table time to render.
+    await page.waitForTimeout(5000); 
+
+    // 3. UNIVERSAL SEARCH CLICKER:
+    // If there is a "Search" or "Submit" button (like in your CEL screenshot), click it.
+    try {
+      // Find buttons commonly used to load job tables
+      const searchBtn = page.locator('button:has-text("Search"), input[value="Search"], button:has-text("Submit")').first();
+      
+      if (await searchBtn.isVisible()) {
+        console.log(`[checker] Found a Search button, clicking it...`);
+        await searchBtn.click();
+        // Wait another 3 seconds for the table to populate after clicking
+        await page.waitForTimeout(3000); 
+      }
+    } catch (e) {
+      // If no button exists, just continue silently. It's a universal script.
+    }
+    
+    const html = await page.content();
+    await browser.close();
+    
+    const $ = cheerio.load(html);
+    
+    // 4. CRITICAL FIX: I removed 'iframe' from the deletion list. 
+    // Do NOT delete iframes, as jobs are often embedded inside them.
+    $('script, style, noscript, svg, img').remove(); 
+    $('[class*="navbar"], [class*="nav"], [class*="menu"]').remove();
+    $('[class*="footer"], [id*="footer"]').remove();
+    $('[class*="header"], [id*="header"]').remove();
+    $('[class*="sidebar"], [class*="social"], [class*="breadcrumb"]').remove();
+    
+    return $;
+  } catch (err) {
+    if (browser) await browser.close();
+    console.warn(`[checker] Playwright failed for ${url}: ${err.message}`);
     return null;
   }
+}
 
   const { textContent, links } = extractCoreData($, url);
   
