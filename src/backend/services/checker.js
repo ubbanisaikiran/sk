@@ -5,10 +5,10 @@ const User    = require('../models/User');
 const { sendMail } = require('./mailer');
 
 const OPENING_SECTION_TITLES = [
-  'current opening', 'current opportunit', 'current vacanc',
+  'current opening', 'current opportunity', 'current vacancy',
   'current recruitment', 'current position', 'active opening',
-  'active vacanc', 'open position', 'open role', 'job opening',
-  'job listing', 'career opportunit', 'latest opening', 'new opening',
+  'active vacancy', 'open position', 'open role', 'job opening',
+  'job listing', 'career opportunity', 'latest opening', 'new opening',
   'available position', 'recruitment notification',
   'ongoing recruitment', 'vacancies', 'vacancy',
   'recruitment', 'advertisement', 'notification',
@@ -42,27 +42,63 @@ const SKIP_URLS = [
   'linkedin.com/company',
 ];
 
-// ── Helpers ───────────────────────────────────────────────────
-function isSiblingNavLink(fullUrl, pageUrl) {
+// ── General text normalizer ───────────────────────────────────
+// Handles extra spaces, special chars, unicode variations
+function normalize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[''`]/g, "'")       // normalize quotes
+    .replace(/[–—]/g, '-')        // normalize dashes
+    .replace(/\s+/g, ' ')         // collapse whitespace
+    .replace(/[^\w\s\u0900-\u097f'-]/g, ' ') // remove special chars except Hindi
+    .trim();
+}
+
+// Check if normalized text contains any of the phrases
+function containsAny(text, phrases) {
+  const n = normalize(text);
+  return phrases.some(p => n.includes(normalize(p)));
+}
+
+// ── Nav link detector (blocks siblings AND parents) ───────────
+function isNavLink(fullUrl, pageUrl) {
   try {
-    const linkUrl  = new URL(fullUrl);
-    const base     = new URL(pageUrl);
-    if (linkUrl.hostname !== base.hostname) return false;
+    const link = new URL(fullUrl);
+    const page = new URL(pageUrl);
 
-    const linkPath = linkUrl.pathname.toLowerCase();
-    const basePath = base.pathname.toLowerCase();
-    const parentPath = basePath.split('/').slice(0, -1).join('/');
+    // Different domain — never a nav link
+    if (link.hostname !== page.hostname) return false;
 
-    // Is it a sibling page (same parent directory)?
-    const isSibling = linkPath.startsWith(parentPath + '/') && linkPath !== basePath;
+    const linkPath = link.pathname.toLowerCase().replace(/\/$/, '');
+    const pagePath = page.pathname.toLowerCase().replace(/\/$/, '');
 
-    // Allow through if it looks like a doc/job link
+    // Same page — not a nav link
+    if (linkPath === pagePath) return false;
+
+    // Is it a doc/job path? Always allow through
     const isDoc = linkPath.match(/\.(pdf|doc|docx)$/) ||
-      ['attachment','download','getfile','getcareer','notification','advertisement','advt','circular'].some(p => linkPath.includes(p));
+      ['attachment','download','getfile','getcareer',
+       'notification','advertisement','advt','circular',
+       'image/get','getattachment'].some(p => linkPath.includes(p));
+    if (isDoc) return false;
 
-    const isJobPath = ['/job','/recruit','/vacancy','/opening','/apply','/notification','/advertisement'].some(p => linkPath.includes(p));
+    const isJobPath = ['/job','/recruit','/vacancy','/opening',
+                       '/apply','/notification','/advertisement',
+                       '/career-opportunit'].some(p => linkPath.includes(p));
+    if (isJobPath) return false;
 
-    return isSibling && !isDoc && !isJobPath;
+    // ── Block parent paths ──────────────────────────────────
+    // e.g. page=/career/current-opportunities, link=/career → block
+    const isParent = pagePath.startsWith(linkPath + '/');
+    if (isParent) return true;
+
+    // ── Block sibling paths ─────────────────────────────────
+    // e.g. page=/career/current-opportunities, link=/career/final-results → block
+    const parentPath = pagePath.split('/').slice(0, -1).join('/');
+    const isSibling  = linkPath.startsWith(parentPath + '/') && linkPath !== pagePath;
+    if (isSibling) return true;
+
+    return false;
   } catch { return false; }
 }
 
@@ -89,24 +125,27 @@ async function fetchPage(url) {
   }
 }
 
+// ── Full page empty check ─────────────────────────────────────
 function pageIsEmpty($) {
-  const bodyText = $('body').text().replace(/\s+/g, ' ').toLowerCase();
-  return EMPTY_SIGNALS.some(e => bodyText.includes(e));
+  const text = $('body').text();
+  return containsAny(text, EMPTY_SIGNALS);
 }
 
+// ── Find openings section ─────────────────────────────────────
 function findOpeningsSection($) {
   let bestEl = null, bestScore = 0;
 
+  // Search headings
   $('h1, h2, h3, h4, h5').each((_, el) => {
-    const text  = $(el).text().replace(/\s+/g, ' ').trim().toLowerCase();
-    const score = OPENING_SECTION_TITLES.filter(t => text.includes(t)).length;
+    const text  = $(el).text();
+    const score = OPENING_SECTION_TITLES.filter(t => containsAny(text, [t])).length;
     if (score > bestScore) { bestScore = score; bestEl = el; }
   });
 
+  // Search section/div id and class
   $('section, article, div').each((_, el) => {
-    const id    = ($(el).attr('id')    || '').toLowerCase();
-    const cls   = ($(el).attr('class') || '').toLowerCase();
-    const score = OPENING_SECTION_TITLES.filter(t => (id + ' ' + cls).includes(t)).length;
+    const combined = ($(el).attr('id') || '') + ' ' + ($(el).attr('class') || '');
+    const score = OPENING_SECTION_TITLES.filter(t => containsAny(combined, [t])).length;
     if (score > bestScore) { bestScore = score; bestEl = el; }
   });
 
@@ -123,22 +162,40 @@ function findOpeningsSection($) {
   return $(bestEl);
 }
 
+// ── Section has real content? ─────────────────────────────────
 function sectionHasRealContent($, section) {
-  const text = $(section).text().replace(/\s+/g, ' ').toLowerCase();
-  if (EMPTY_SIGNALS.some(e => text.includes(e))) {
+  const text = $(section).text();
+
+  if (containsAny(text, EMPTY_SIGNALS)) {
     console.log('[checker] ✗ Section has empty signal'); return false;
   }
+
   let emptyJobTable = false;
   $(section).find('table').each((_, table) => {
-    const tText = $(table).text().toLowerCase();
-    const isJob = ['vacancy','position','post','role','qualification','experience'].some(k => tText.includes(k));
-    if (isJob && $(table).find('tbody tr').length === 0) { emptyJobTable = true; return false; }
+    const tText  = $(table).text();
+    const isJob  = containsAny(tText, ['vacancy','position','post','role','qualification','experience']);
+    const rows   = $(table).find('tbody tr').length;
+    if (isJob && rows === 0) { emptyJobTable = true; return false; }
   });
   if (emptyJobTable) { console.log('[checker] ✗ Empty job table'); return false; }
+
   const links = $(section).find('a').length;
   const rows  = $(section).find('tbody tr, li').length;
-  console.log(`[checker] Section — links:${links} rows:${rows} textLen:${text.length}`);
-  return text.length > 60 && (links > 0 || rows > 0);
+  const tlen  = text.replace(/\s+/g, ' ').trim().length;
+  console.log(`[checker] Section — links:${links} rows:${rows} textLen:${tlen}`);
+  return tlen > 60 && (links > 0 || rows > 0);
+}
+
+// ── Find job table in element ─────────────────────────────────
+function findJobTable($, el) {
+  let found = null;
+  $(el).find('table').each((_, table) => {
+    const headerText = $(table).find('thead, tr').first().text();
+    const isJob = containsAny(headerText,
+      ['download','notification','recruitment','vacancy','closing','publishing','date of']);
+    if (isJob) { found = table; return false; }
+  });
+  return found;
 }
 
 // ── Collect document links ────────────────────────────────────
@@ -150,29 +207,33 @@ function collectDocumentLinks($el, baseUrl, $) {
     'attachment', 'getfile', 'getdoc',
     'getcareer', 'recruitmentfile',
     'advt', 'advertisement', 'circular',
-    'careerattachment', 'jobfile', 'vacancyfile',
-    'image/get', 'getattachment', 'filedownload',
+    'careerattachment', 'image/get', 'getattachment', 'filedownload',
   ];
 
-  const DOC_LINK_TEXTS = [
+  const DOC_LINK_PHRASES = [
     'advertisement', 'notification', 'apply online',
     'application form', 'advt', 'circular',
     'recruitment', 'vacancy details',
-    'click here to apply', 'brochure',
+    'click here to apply', 'brochure', 'detailed',
   ];
 
-  const searchIn = $el ? $($el).find('a') : $('a');
+  let searchIn;
+  if ($el) {
+    const jobTable = findJobTable($, $el);
+    searchIn = jobTable ? $(jobTable).find('tbody tr a') : $($el).find('a');
+  } else {
+    searchIn = $('a');
+  }
 
   searchIn.each((_, el) => {
     const href    = $(el).attr('href') || '';
     const rawText = $(el).text().replace(/\s+/g, ' ').trim();
-    const text    = rawText.toLowerCase();
     if (!href || href === '#' || href.startsWith('#')) return;
     if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
 
     const hrefLow   = href.toLowerCase();
-    const isDocUrl  = DOC_URL_PATTERNS.some(p => hrefLow.includes(p.toLowerCase()));
-    const isDocText = DOC_LINK_TEXTS.some(t => text.includes(t));
+    const isDocUrl  = DOC_URL_PATTERNS.some(p => hrefLow.includes(p));
+    const isDocText = containsAny(rawText, DOC_LINK_PHRASES);
     if (!isDocUrl && !isDocText) return;
 
     const fullUrl = href.startsWith('http') ? href : (() => {
@@ -180,13 +241,9 @@ function collectDocumentLinks($el, baseUrl, $) {
     })();
     if (!fullUrl) return;
     if (SKIP_URLS.some(p => fullUrl.toLowerCase().includes(p))) return;
-
-    // Skip sibling nav pages
-    if (isSiblingNavLink(fullUrl, baseUrl)) {
-      console.log(`   [skip nav] ${rawText}`); return;
-    }
-
+    if (isNavLink(fullUrl, baseUrl)) { console.log(`   [skip nav] ${rawText}`); return; }
     if (links.find(l => l.url === fullUrl)) return;
+
     links.push({ url: fullUrl, label: rawText || 'View Document' });
   });
 
@@ -197,24 +254,41 @@ function collectDocumentLinks($el, baseUrl, $) {
 function extractLinks($, section, pageUrl) {
   const links = [];
 
+  // Job table present? Only extract from tbody rows
+  const jobTable = findJobTable($, section);
+  if (jobTable) {
+    console.log('[checker] Job table found — tbody only');
+    $(jobTable).find('tbody tr').each((_, row) => {
+      $(row).find('a').each((_, el) => {
+        const href = $(el).attr('href') || '';
+        const text = $(el).text().replace(/\s+/g, ' ').trim();
+        if (!href || href === '#' || href.startsWith('#')) return;
+        if (text.length < 2) return;
+        if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+        const fullUrl = href.startsWith('http') ? href : (() => {
+          try { return new URL(href, pageUrl).href; } catch { return null; }
+        })();
+        if (!fullUrl) return;
+        if (isNavLink(fullUrl, pageUrl)) { console.log(`   [skip nav] ${text}`); return; }
+        if (links.find(l => l.url === fullUrl)) return;
+        links.push({ url: fullUrl, label: text });
+      });
+    });
+    return links;
+  }
+
+  // No job table — extract all links, skip nav
   $(section).find('a').each((_, el) => {
     const href = $(el).attr('href') || '';
     const text = $(el).text().replace(/\s+/g, ' ').trim();
     if (!href || href === '#' || href.startsWith('#')) return;
     if (text.length < 2) return;
     if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
-
     const fullUrl = href.startsWith('http') ? href : (() => {
       try { return new URL(href, pageUrl).href; } catch { return null; }
     })();
     if (!fullUrl) return;
-    if (SKIP_URLS.some(p => fullUrl.toLowerCase().includes(p))) return;
-
-    // Skip sibling career nav pages
-    if (isSiblingNavLink(fullUrl, pageUrl)) {
-      console.log(`   [skip nav] ${text}`); return;
-    }
-
+    if (isNavLink(fullUrl, pageUrl)) { console.log(`   [skip nav] ${text}`); return; }
     if (links.find(l => l.url === fullUrl)) return;
     links.push({ url: fullUrl, label: text });
   });
@@ -254,18 +328,18 @@ async function checkCompany(company) {
 
     // STEP 1: Full page empty check
     if (pageIsEmpty($)) {
-      console.log(`[checker] ✗ STEP 1 — No vacancies on page`);
+      console.log(`[checker] ✗ STEP 1 — No vacancies`);
       fingerprint += url + ':page-empty|'; continue;
     }
-    console.log(`[checker] ✓ STEP 1 — Page has potential content`);
+    console.log(`[checker] ✓ STEP 1 — Page has content`);
 
     // STEP 2: Find openings section
     const section = findOpeningsSection($);
     if (!section || !section.length) {
-      console.log(`[checker] ~ STEP 2 — No section, trying doc fallback`);
+      console.log(`[checker] ~ STEP 2 — No section, doc fallback`);
       const docs = collectDocumentLinks(null, url, $);
       if (docs.length > 0) {
-        console.log(`[checker] ✓ Doc fallback — ${docs.length} docs`);
+        console.log(`[checker] ✓ ${docs.length} docs found`);
         docs.forEach(d => console.log(`   • ${d.label} → ${d.url}`));
         allLinks.push(...docs.filter(l => !allLinks.find(x => x.url === l.url)));
         foundContent = true;
@@ -280,7 +354,7 @@ async function checkCompany(company) {
 
     // STEP 3: Section has real content?
     if (!sectionHasRealContent($, section)) {
-      console.log(`[checker] ~ STEP 3 — Section empty, checking docs inside`);
+      console.log(`[checker] ~ STEP 3 — Section empty, doc fallback`);
       const sectionDocs = collectDocumentLinks(section, url, $);
       if (sectionDocs.length > 0) {
         console.log(`[checker] ✓ ${sectionDocs.length} docs in section`);
@@ -295,9 +369,9 @@ async function checkCompany(company) {
       }
       continue;
     }
-    console.log(`[checker] ✓ STEP 3 — Section has real content`);
+    console.log(`[checker] ✓ STEP 3 — Real content`);
 
-    // STEP 4: Extract links from section
+    // STEP 4: Extract links
     const sectionLinks = extractLinks($, section, url);
     const title = extractTitle($, section);
     const desc  = extractDesc($, section);
@@ -312,7 +386,7 @@ async function checkCompany(company) {
       if (!bestDesc  && desc)  bestDesc  = desc;
       fingerprint += url + ':' + sectionLinks.map(l => l.url).join(',') + '|';
     } else {
-      // JS-rendered — Bank of Baroda case
+      // JS-rendered (Bank of Baroda) — use the exact page URL user gave
       console.log(`[checker] ~ STEP 4 — JS-rendered, using page URL`);
       foundContent = true;
       if (!bestTitle && title) bestTitle = title;
@@ -366,7 +440,7 @@ async function runDailyCheck() {
       const companies = await Company.find({ userId: user._id }).select('+lastContent');
       if (!companies.length) continue;
       await Promise.allSettled(companies.map(c => checkCompany(c)));
-      const fresh = await Company.find({ userId: user._id });
+      const fresh  = await Company.find({ userId: user._id });
       const cutoff = Date.now() - 24 * 60 * 60 * 1000;
       const todayUpdates = [];
       for (const c of fresh) {
@@ -396,7 +470,7 @@ async function sendDigest(user, companies, updates) {
           <p style="color:#6b7280;font-size:13px;margin:0 0 12px">${u.description}</p>
           ${u.applyLinks && u.applyLinks.length > 1
             ? u.applyLinks.map((link, i) => {
-                const label = (u.applyLabels?.[i]) || `Document ${i + 1}`;
+                const label = u.applyLabels?.[i] || `Document ${i + 1}`;
                 const isPdf = link.toLowerCase().includes('.pdf');
                 return `<a href="${link}" style="display:inline-block;margin:4px;padding:8px 16px;background:#ede9fe;color:#6366f1;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none">${isPdf ? '📄' : '📎'} ${label}</a>`;
               }).join('')
