@@ -8,73 +8,86 @@ const { sendMail } = require('./mailer');
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────
 
-// Signals that mean "no jobs right now" — skip the page entirely
-const EMPTY_SIGNALS = [
-  'no vacancies', 'no current openings', 'no openings available',
-  'currently there are no vacancies', 'no posts available',
-  'no positions available', 'check back later', 'no active recruitment',
-  'no job openings currently', 'no current vacancies',
-  'kindly check back later', 'no open positions',
-  'no recruitment currently', 'at present no vacancy',
-  'no current opportunities',
-  'कोई रिक्तियां नहीं', 'कोई पद नहीं', 'वर्तमान में कोई रिक्ति',
+const OPENING_SECTION_TITLES = [
+  'current opening', 'current opportunit', 'current vacanc',
+  'current recruitment', 'current position', 'active opening',
+  'active vacanc', 'open position', 'open role', 'job opening',
+  'job listing', 'career opportunit', 'latest opening', 'new opening',
+  'available position', 'recruitment notification',
+  'ongoing recruitment', 'vacancies', 'vacancy',
+  'recruitment', 'advertisement', 'notification',
+  'वर्तमान रिक्तियां', 'भर्ती', 'रिक्ति',
 ];
 
-// These words near a link = it's probably a job link
+const EMPTY_SIGNALS = [
+  'no vacancies', 'no current openings', 'no openings',
+  'currently there are no', 'no posts available',
+  'no positions available', 'check back later',
+  'no active recruitment', 'no job openings',
+  'no current vacancies', 'kindly check back later',
+  'no open positions', 'no open roles', 'no jobs found',
+  'no results found', 'no recruitment currently',
+  'at present no vacancy', 'no data available',
+  'no current opportunities',
+  'कोई रिक्तियां नहीं', 'कोई पद नहीं', 'वर्तमान में कोई',
+];
+
 const JOB_CONTEXT = [
   'vacancy', 'vacancies', 'recruitment', 'opening', 'post',
   'notification', 'advertisement', 'advt', 'circular',
   'apply', 'application', 'last date', 'closing date',
-  'job title', 'description', 'qualification', 'experience',
-  'registration', 'link for', 'date to apply', 'published',
-  'due date', 'start date', 'click here for details',
-  'scheme and syllabus', 'direct recruitment',
+  'job title', 'qualification', 'experience',
+  'registration', 'link for', 'due date', 'published',
+  'click here for details', 'direct recruitment',
+  'scheme', 'syllabus',
 ];
 
-// Link text that means it IS a job link
 const JOB_LINK_TEXT = [
-  'apply', 'apply now', 'apply online', 'register', 'registration',
-  'click here', 'click here for details', 'notification', 'advertisement',
-  'advt', 'circular', 'details', 'view details', 'download',
-  'scheme', 'syllabus', 'recruitment', 'vacancy', 'job details',
-  'know more', 'read more', 'view more',
+  'apply', 'apply now', 'apply online', 'register',
+  'click here', 'click here for details',
+  'notification', 'advertisement', 'advt',
+  'details', 'view details', 'download',
+  'scheme', 'syllabus', 'recruitment', 'vacancy',
+  'know more', 'read more',
 ];
 
-// URL patterns that confirm it's a job link
 const JOB_URL_PATTERNS = [
   '.pdf', '.doc', '.docx',
-  '/job', '/jobs', '/career', '/careers', '/vacancy', '/vacancies',
-  '/recruit', '/recruitment', '/opening', '/openings',
-  '/apply', '/application', '/notification', '/advertisement',
-  '/circular', '/advt', 'attachment', 'getfile', 'download',
-  'image/get', 'getattachment', 'getcareer',
-  // External apply portals common in Indian PSUs
-  'ibps.in', 'ssc.nic.in', 'upsconline.nic.in', 'nta.ac.in',
-  'crpd.sbi', 'bankbarodacrpd', 'externalexam',
-  'ora.', 'iocl.com', 'ntpccareers', 'bhelonline',
+  '/job', '/jobs', '/career', '/careers',
+  '/vacancy', '/vacancies', '/recruit', '/recruitment',
+  '/opening', '/openings', '/apply', '/application',
+  '/notification', '/advertisement', '/circular', '/advt',
+  'attachment', 'getfile', 'getcareer', 'download',
+  'image/get', 'getattachment', 'filedownload',
+  'ibps.in', 'ssc.nic.in', 'upsconline', 'nta.ac.in',
+  'crpd', 'externalexam', 'ora.',
 ];
 
-// Noise selectors — always remove these
+const SKIP_URLS = [
+  'javascript:', 'mailto:', 'tel:',
+  'facebook.com', 'twitter.com', 'youtube.com',
+  'instagram.com', 'whatsapp.com',
+  'play.google.com', 'apps.apple.com',
+  'linkedin.com/company',
+];
+
 const NOISE_SELECTORS = [
-  'script', 'style', 'noscript', 'iframe',
+  'script', 'style', 'noscript',
   'nav', 'header', 'footer',
-  '[class*="nav"]', '[class*="menu"]', '[class*="header"]',
-  '[class*="footer"]', '[class*="sidebar"]', '[class*="topbar"]',
-  '[class*="cookie"]', '[class*="popup"]', '[class*="modal"]',
-  '[class*="social"]', '[class*="share"]', '[class*="chat"]',
-  '[class*="breadcrumb"]', '[class*="accessibility"]',
-  '[id*="nav"]', '[id*="menu"]', '[id*="header"]',
-  '[id*="footer"]', '[id*="sidebar"]', '[id*="chat"]',
+  '[class*="navbar"]', '[class*="topbar"]', '[class*="sidenav"]',
+  '[class*="accessibility"]', '[class*="toolbar"]', '[class*="breadcrumb"]',
+  '[class*="social"]', '[class*="share"]', '[class*="cookie"]', '[class*="popup"]',
+  '[id*="nav"]', '[id*="header"]', '[id*="footer"]', '[id*="sidebar"]',
 ];
 
 // ─────────────────────────────────────────────────────────────
-// SMART FETCH — axios first, Puppeteer fallback
+// SMART FETCH — axios first, Puppeteer fallback for JS sites
 // ─────────────────────────────────────────────────────────────
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 async function smartFetch(url) {
-  // ── Layer 1: Fast axios ──────────────────────────────────
+  // Layer 1: Fast axios
   try {
     const res  = await axios.get(url, {
       timeout: 15000,
@@ -83,19 +96,18 @@ async function smartFetch(url) {
     const html = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
     const $    = cheerio.load(html);
     removeNoise($);
-    const text = $('body').text().replace(/\s+/g, ' ').trim();
-
-    if (text.length > 400) {
-      console.log(`[fetch] axios OK ${text.length} chars`);
+    const len  = $('body').text().replace(/\s+/g, ' ').trim().length;
+    if (len > 400) {
+      console.log(`[fetch] axios OK (${len} chars)`);
       return $;
     }
-    console.log(`[fetch] JS shell detected (${text.length} chars) — trying Puppeteer`);
+    console.log(`[fetch] JS shell (${len} chars) — trying Puppeteer`);
   } catch (e) {
     console.warn(`[fetch] axios failed: ${e.message}`);
   }
 
-  // ── Layer 2: Puppeteer for JS-rendered pages ─────────────
-  return await puppeteerFetch(url);
+  // Layer 2: Puppeteer for JS-rendered pages
+  return puppeteerFetch(url);
 }
 
 async function puppeteerFetch(url) {
@@ -112,34 +124,24 @@ async function puppeteerFetch(url) {
       execPath  = undefined;
       args      = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'];
     }
-
     browser = await puppeteer.launch({
-      executablePath: execPath,
-      args,
-      headless: true,
+      executablePath: execPath, args, headless: true,
       defaultViewport: { width: 1280, height: 800 },
     });
-
     const page = await browser.newPage();
     await page.setUserAgent(UA);
-
-    // Block images/fonts to load faster
     await page.setRequestInterception(true);
     page.on('request', req => {
-      if (['image','font','media'].includes(req.resourceType())) req.abort();
+      if (['image', 'font', 'media'].includes(req.resourceType())) req.abort();
       else req.continue();
     });
-
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-    await new Promise(r => setTimeout(r, 2500)); // wait for React/Angular hydration
-
+    await new Promise(r => setTimeout(r, 2500));
     const html = await page.content();
     await browser.close(); browser = null;
-
     const $ = cheerio.load(html);
     removeNoise($);
-    const text = $('body').text().replace(/\s+/g, ' ').trim();
-    console.log(`[fetch] Puppeteer OK ${text.length} chars`);
+    console.log(`[fetch] Puppeteer OK (${$('body').text().replace(/\s+/g,' ').trim().length} chars)`);
     return $;
   } catch (e) {
     if (browser) { try { await browser.close(); } catch {} }
@@ -153,8 +155,168 @@ function removeNoise($) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// UNIVERSAL LINK SCORER
-// Score every link on the page — highest scores = job links
+// WORKING 4-STEP HELPERS (preserved exactly)
+// ─────────────────────────────────────────────────────────────
+
+function pageIsEmpty($) {
+  const text = $('body').text().toLowerCase().replace(/\s+/g, ' ');
+  return EMPTY_SIGNALS.some(e => text.includes(e));
+}
+
+function findOpeningsSection($) {
+  let bestEl = null, bestScore = 0;
+  $('h1, h2, h3, h4, h5').each((_, el) => {
+    const text  = $(el).text().toLowerCase().replace(/\s+/g, ' ');
+    const score = OPENING_SECTION_TITLES.filter(t => text.includes(t)).length;
+    if (score > bestScore) { bestScore = score; bestEl = el; }
+  });
+  $('section, article, div').each((_, el) => {
+    const id  = ($(el).attr('id')    || '').toLowerCase();
+    const cls = ($(el).attr('class') || '').toLowerCase();
+    const score = OPENING_SECTION_TITLES.filter(t => (id + ' ' + cls).includes(t)).length;
+    if (score > bestScore) { bestScore = score; bestEl = el; }
+  });
+  if (!bestEl) return null;
+  const tag = bestEl.tagName?.toLowerCase();
+  if (['h1','h2','h3','h4','h5'].includes(tag)) {
+    const parent = $(bestEl).closest(
+      'section, article, [class*="career"], [class*="job"], [class*="opening"], [class*="opportunit"], [class*="vacancy"], [class*="recruit"]'
+    );
+    if (parent.length) return parent;
+    return $(bestEl).parent();
+  }
+  return $(bestEl);
+}
+
+function sectionHasRealContent($, section) {
+  const text = $(section).text().toLowerCase().replace(/\s+/g, ' ');
+  if (EMPTY_SIGNALS.some(e => text.includes(e))) {
+    console.log('[checker] ✗ Section has empty signal'); return false;
+  }
+  let emptyJobTable = false;
+  $(section).find('table').each((_, table) => {
+    const t   = $(table).text().toLowerCase();
+    const isJob = ['vacancy','position','post','role','qualification','experience','job title','last date'].some(k => t.includes(k));
+    if (isJob && $(table).find('tbody tr').length === 0) { emptyJobTable = true; return false; }
+  });
+  if (emptyJobTable) { console.log('[checker] ✗ Empty job table'); return false; }
+  const links = $(section).find('a').length;
+  const rows  = $(section).find('tbody tr, li').length;
+  console.log(`[checker] Section — links:${links} rows:${rows} textLen:${text.length}`);
+  return text.length > 60 && (links > 0 || rows > 0);
+}
+
+function findJobTable($, el) {
+  let found = null;
+  $(el).find('table').each((_, table) => {
+    const h = $(table).find('thead, tr').first().text().toLowerCase();
+    if (['download','notification','recruitment','vacancy','closing','publishing',
+         'date','job title','last date','link for'].some(k => h.includes(k))) {
+      found = table; return false;
+    }
+  });
+  return found;
+}
+
+function isNavLink(fullUrl, pageUrl) {
+  try {
+    const link = new URL(fullUrl);
+    const page = new URL(pageUrl);
+    if (link.hostname !== page.hostname) return false;
+    const lp = link.pathname.toLowerCase().replace(/\/$/, '');
+    const pp = page.pathname.toLowerCase().replace(/\/$/, '');
+    if (lp === pp) return false;
+    const isDoc = lp.match(/\.(pdf|doc|docx)$/) ||
+      ['attachment','download','getfile','getcareer','notification',
+       'advertisement','advt','circular','image/get','getattachment'].some(p => lp.includes(p));
+    if (isDoc) return false;
+    const isJobPath = ['/job','/recruit','/vacancy','/opening','/apply',
+                       '/notification','/advertisement'].some(p => lp.includes(p));
+    if (isJobPath) return false;
+    if (pp.startsWith(lp + '/')) return true;
+    const parent = pp.split('/').slice(0, -1).join('/');
+    if (lp.startsWith(parent + '/') && lp !== pp) return true;
+    return false;
+  } catch { return false; }
+}
+
+function hasJobContext($, el) {
+  const ctx = $(el).closest('tr, li, div, p, td, article, [class*="card"]').first().text().toLowerCase();
+  return JOB_CONTEXT.some(k => ctx.includes(k));
+}
+
+function extractFromSection($, section, pageUrl) {
+  const links = [];
+  const jobTable = findJobTable($, section);
+  if (jobTable) {
+    console.log('[checker] Job table — tbody only');
+    $(jobTable).find('tbody tr').each((_, row) => {
+      $(row).find('a').each((_, el) => {
+        const href = $(el).attr('href') || '';
+        const text = $(el).text().replace(/\s+/g, ' ').trim();
+        if (!href || href === '#' || href.startsWith('#') || text.length < 2) return;
+        if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+        const fullUrl = href.startsWith('http') ? href : (() => {
+          try { return new URL(href, pageUrl).href; } catch { return null; }
+        })();
+        if (!fullUrl || isNavLink(fullUrl, pageUrl)) return;
+        if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label: text });
+      });
+    });
+    return links;
+  }
+  $(section).find('a').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const text = $(el).text().replace(/\s+/g, ' ').trim();
+    if (!href || href === '#' || href.startsWith('#') || text.length < 2) return;
+    if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+    const fullUrl = href.startsWith('http') ? href : (() => {
+      try { return new URL(href, pageUrl).href; } catch { return null; }
+    })();
+    if (!fullUrl || isNavLink(fullUrl, pageUrl)) return;
+    if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label: text });
+  });
+  return links;
+}
+
+function collectDocLinks($el, baseUrl, $) {
+  const links = [];
+  const DOC_URL  = ['.pdf','.doc','.docx','attachment','getfile','getdoc','getcareer',
+                    'advt','advertisement','circular','careerattachment','image/get',
+                    'getattachment','filedownload'];
+  const DOC_TEXT = ['advertisement','notification','apply online','application form',
+                    'advt','circular','recruitment','vacancy details',
+                    'click here to apply','brochure','detailed'];
+  let searchIn;
+  if ($el) {
+    const tbl = findJobTable($, $el);
+    searchIn  = tbl ? $(tbl).find('tbody tr a') : $($el).find('a');
+  } else {
+    searchIn = $('a');
+  }
+  searchIn.each((_, el) => {
+    const href    = $(el).attr('href') || '';
+    const rawText = $(el).text().replace(/\s+/g, ' ').trim();
+    const text    = rawText.toLowerCase();
+    if (!href || href === '#' || href.startsWith('#')) return;
+    if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+    const isDocUrl  = DOC_URL.some(p => href.toLowerCase().includes(p));
+    const isDocText = DOC_TEXT.some(t => text.includes(t));
+    if (!isDocUrl && !isDocText) return;
+    if (!hasJobContext($, el)) { console.log(`   [skip no-ctx] ${rawText}`); return; }
+    const fullUrl = href.startsWith('http') ? href : (() => {
+      try { return new URL(href, baseUrl).href; } catch { return null; }
+    })();
+    if (!fullUrl) return;
+    if (SKIP_URLS.some(p => fullUrl.toLowerCase().includes(p))) return;
+    if (isNavLink(fullUrl, baseUrl)) return;
+    if (!links.find(l => l.url === fullUrl)) links.push({ url: fullUrl, label: rawText || 'View Document' });
+  });
+  return links;
+}
+
+// ─────────────────────────────────────────────────────────────
+// UNIVERSAL LINK SCORER — fallback for BSNL/MeitY/SEBI/BOB etc.
 // ─────────────────────────────────────────────────────────────
 
 function scoreLink(href, linkText, contextText) {
@@ -162,106 +324,82 @@ function scoreLink(href, linkText, contextText) {
   const url  = href.toLowerCase();
   const text = linkText.toLowerCase().trim();
   const ctx  = contextText.toLowerCase();
-
-  // Hard skip — never job links
   if (!href || href === '#' || href.startsWith('#')) return -1;
   if (['javascript:', 'mailto:', 'tel:'].some(p => href.startsWith(p))) return -1;
   if (text.length < 2) return -1;
-
-  // Skip pure social/app links
-  const hardSkip = ['facebook.com','twitter.com','youtube.com','instagram.com',
-                     'whatsapp.com','play.google.com','apps.apple.com','linkedin.com/company'];
-  if (hardSkip.some(p => url.includes(p))) return -1;
-
-  // ── URL signals ──────────────────────────────────────────
-  if (url.includes('.pdf')) score += 8;
-  if (url.match(/\.(doc|docx)$/)) score += 7;
-  if (JOB_URL_PATTERNS.some(p => url.includes(p))) score += 4;
-
-  // ── Link text signals ────────────────────────────────────
-  if (JOB_LINK_TEXT.some(t => text.includes(t))) score += 4;
-  if (text.includes('apply')) score += 3;
+  if (SKIP_URLS.some(p => url.includes(p))) return -1;
+  // URL signals
+  if (url.includes('.pdf'))                              score += 8;
+  if (url.match(/\.(doc|docx)$/))                        score += 7;
+  if (JOB_URL_PATTERNS.some(p => url.includes(p)))       score += 4;
+  // Link text signals
+  if (JOB_LINK_TEXT.some(t => text.includes(t)))         score += 4;
+  if (text.includes('apply'))                             score += 3;
   if (text.includes('notification') || text.includes('advertisement')) score += 3;
-  if (text.includes('vacancy') || text.includes('recruitment')) score += 3;
-
-  // ── Context signals (surrounding row/card text) ──────────
+  if (text.includes('vacancy') || text.includes('recruitment'))        score += 3;
+  // Context signals
   const ctxHits = JOB_CONTEXT.filter(k => ctx.includes(k)).length;
-  score += Math.min(ctxHits * 2, 10); // up to 10 pts from context
-
-  // ── Bonus: context has dates (last date, closing date) ───
+  score += Math.min(ctxHits * 2, 10);
+  // Date in context = strong signal
   if (ctx.match(/\d{2}[.\-/]\d{2}[.\-/]\d{4}/) || ctx.match(/\d{4}-\d{2}-\d{2}/)) score += 2;
-
   return score;
 }
 
-// ─────────────────────────────────────────────────────────────
-// EXTRACT ALL JOB LINKS FROM PAGE
-// ─────────────────────────────────────────────────────────────
-
-function extractJobLinks($, pageUrl) {
+function universalScorer($, pageUrl) {
   const scored = [];
-
   $('a').each((_, el) => {
     const href    = ($(el).attr('href') || '').trim();
     const rawText = $(el).text().replace(/\s+/g, ' ').trim();
-
-    // Get context — parent row, card, or div (up to 600 chars)
     const context = $(el)
-      .closest('tr, li, article, .card, [class*="card"], div, section')
-      .first()
-      .text()
-      .replace(/\s+/g, ' ')
-      .slice(0, 600);
-
+      .closest('tr, li, article, [class*="card"], div, section')
+      .first().text().replace(/\s+/g, ' ').slice(0, 600);
     const score = scoreLink(href, rawText, context);
-    if (score < 3) return; // below threshold
-
-    // Resolve URL
+    if (score < 3) return;
     const fullUrl = href.startsWith('http') ? href : (() => {
       try { return new URL(href, pageUrl).href; } catch { return null; }
     })();
     if (!fullUrl) return;
-
-    // Deduplicate — keep highest score
+    if (isNavLink(fullUrl, pageUrl)) return;
     const existing = scored.find(l => l.url === fullUrl);
     if (existing) {
       if (score > existing.score) { existing.score = score; existing.label = rawText; }
     } else {
-      scored.push({ url: fullUrl, label: rawText, score });
+      scored.push({ url: fullUrl, label: rawText || 'View Details', score });
     }
   });
-
-  // Sort by score descending
   scored.sort((a, b) => b.score - a.score);
-
-  console.log(`[extract] ${scored.length} links scored ≥3:`);
-  scored.slice(0, 8).forEach(l => console.log(`   [${l.score}] ${l.label} → ${l.url}`));
-
-  return scored.slice(0, 6); // top 6
+  console.log(`[scorer] ${scored.length} links scored ≥3`);
+  scored.slice(0, 6).forEach(l => console.log(`   [${l.score}] ${l.label} → ${l.url}`));
+  return scored.slice(0, 6);
 }
 
 // ─────────────────────────────────────────────────────────────
-// EXTRACT TITLE & DESCRIPTION
+// TITLE & DESCRIPTION
 // ─────────────────────────────────────────────────────────────
 
-function extractTitle($) {
-  // Try page h1/h2 that looks like a jobs section title
+function extractTitle($, section) {
+  const el = section ? $(section) : $('body');
   let title = '';
-  $('h1, h2, h3').each((_, el) => {
-    const t = $(el).text().trim();
+  el.find('h1,h2,h3,h4,h5').each((_, h) => {
+    const t = $(h).text().trim();
     const l = t.toLowerCase();
     if (t.length > 5 && t.length < 150 &&
         ['job','career','vacanc','recruit','opportunit','opening'].some(k => l.includes(k))) {
       title = t; return false;
     }
   });
+  if (!title && section) {
+    const h = $(section).find('h1,h2,h3,h4,h5').first().text().trim();
+    if (h.length > 5 && h.length < 150) title = h;
+  }
   return title;
 }
 
-function extractDesc($) {
+function extractDesc($, section) {
+  const el = section ? $(section) : $('body');
   let desc = '';
-  $('p, li, td').each((_, el) => {
-    const t = $(el).text().replace(/\s+/g, ' ').trim();
+  el.find('p, li, td').each((_, e) => {
+    const t = $(e).text().replace(/\s+/g, ' ').trim();
     if (t.length > 40 && t.length < 400 &&
         JOB_CONTEXT.some(k => t.toLowerCase().includes(k))) {
       desc = t.slice(0, 220); return false;
@@ -271,7 +409,7 @@ function extractDesc($) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MAIN CHECK FUNCTION
+// MAIN CHECK — 4-step + universal scorer fallback
 // ─────────────────────────────────────────────────────────────
 
 async function checkCompany(company) {
@@ -282,53 +420,101 @@ async function checkCompany(company) {
   console.log(`[checker] ${company.name}`);
   console.log(`[checker] URLs: ${urls.join(' | ')}`);
 
-  let allLinks    = [];
-  let bestTitle   = '';
-  let bestDesc    = '';
-  let fingerprint = '';
-  let foundContent = false;
+  let allLinks = [], bestTitle = '', bestDesc = '', fingerprint = '', foundContent = false;
 
   for (const url of urls) {
     console.log(`\n[checker] → ${url}`);
 
     const $ = await smartFetch(url);
-    if (!$) {
-      console.log(`[checker] ✗ Could not fetch ${url}`);
-      fingerprint += url + ':fetch-failed|';
-      continue;
-    }
+    if (!$) { fingerprint += url + ':fetch-failed|'; continue; }
 
-    // ── STEP 1: Full page empty check ────────────────────────
-    const bodyText = $('body').text().toLowerCase();
-    if (EMPTY_SIGNALS.some(e => bodyText.includes(e.toLowerCase()))) {
-      console.log(`[checker] ✗ Page says no vacancies — skip`);
+    // STEP 1: Full page empty check (catches Balmer Lawrie "no vacancies")
+    if (pageIsEmpty($)) {
+      console.log(`[checker] ✗ STEP 1 — No vacancies`);
       fingerprint += url + ':no-vacancy|';
       continue;
     }
-    console.log(`[checker] ✓ Page has potential content`);
+    console.log(`[checker] ✓ STEP 1 — Page has content`);
 
-    // ── STEP 2: Score and extract all job links ───────────────
-    const links = extractJobLinks($, url);
-    const title = extractTitle($);
-    const desc  = extractDesc($);
+    // STEP 2: Find named openings section (CEL "Career Opportunity", BOB "Current Opportunities")
+    const section = findOpeningsSection($);
 
-    if (links.length > 0) {
-      console.log(`[checker] ✓ Found ${links.length} job links`);
+    if (section && section.length) {
+      console.log(`[checker] ✓ STEP 2 — Named section found`);
+
+      if (sectionHasRealContent($, section)) {
+        console.log(`[checker] ✓ STEP 3 — Section has real content`);
+
+        // STEP 4: Extract from job table or full section
+        const sectionLinks = extractFromSection($, section, url);
+        const title = extractTitle($, section);
+        const desc  = extractDesc($, section);
+        console.log(`[checker] ✓ STEP 4 — ${sectionLinks.length} links from section`);
+        sectionLinks.forEach(l => console.log(`   • ${l.label} → ${l.url}`));
+
+        if (sectionLinks.length > 0) {
+          foundContent = true;
+          sectionLinks.forEach(l => { if (!allLinks.find(x => x.url === l.url)) allLinks.push(l); });
+          if (!bestTitle && title) bestTitle = title;
+          if (!bestDesc  && desc)  bestDesc  = desc;
+          fingerprint += url + ':section:' + sectionLinks.map(l => l.url).join(',') + '|';
+          continue;
+        }
+        // Section has text but links are JS-rendered — fall through to scorer
+        console.log(`[checker] ~ Section links empty — falling to scorer`);
+        if (!bestTitle && title) bestTitle = title;
+        if (!bestDesc  && desc)  bestDesc  = desc;
+
+      } else {
+        // Section found but empty — try doc links inside it
+        const sectionDocs = collectDocLinks(section, url, $);
+        if (sectionDocs.length > 0) {
+          console.log(`[checker] ✓ STEP 3 doc fallback — ${sectionDocs.length} docs`);
+          sectionDocs.forEach(d => console.log(`   • ${d.label} → ${d.url}`));
+          foundContent = true;
+          sectionDocs.forEach(l => { if (!allLinks.find(x => x.url === l.url)) allLinks.push(l); });
+          if (!bestTitle) { const t = extractTitle($, section); if (t) bestTitle = t; }
+          fingerprint += url + ':section-docs:' + sectionDocs.map(l => l.url).join(',') + '|';
+          continue;
+        }
+        console.log(`[checker] ~ Section empty — falling to scorer`);
+      }
+
+    } else {
+      // No named section — try doc/PDF links first
+      const docs = collectDocLinks(null, url, $);
+      if (docs.length > 0) {
+        console.log(`[checker] ~ STEP 2 doc fallback — ${docs.length} docs`);
+        docs.forEach(d => console.log(`   • ${d.label} → ${d.url}`));
+        foundContent = true;
+        docs.forEach(l => { if (!allLinks.find(x => x.url === l.url)) allLinks.push(l); });
+        if (!bestTitle) bestTitle = `Recruitment at ${company.name}`;
+        fingerprint += url + ':docs:' + docs.map(l => l.url).join(',') + '|';
+        continue;
+      }
+      console.log(`[checker] ~ No section, no docs — falling to scorer`);
+    }
+
+    // UNIVERSAL SCORER FALLBACK
+    // Handles: BSNL table, MeitY cards, BOB JS-rendered, SEBI portal, any modern site
+    const scored = universalScorer($, url);
+    const title  = extractTitle($, null);
+    const desc   = extractDesc($, null);
+
+    if (scored.length > 0) {
+      console.log(`[checker] ✓ Scorer — ${scored.length} job links`);
       foundContent = true;
-      links.forEach(l => {
-        if (!allLinks.find(x => x.url === l.url)) allLinks.push(l);
-      });
+      scored.forEach(l => { if (!allLinks.find(x => x.url === l.url)) allLinks.push({ url: l.url, label: l.label }); });
       if (!bestTitle && title) bestTitle = title;
       if (!bestDesc  && desc)  bestDesc  = desc;
-      fingerprint += url + ':' + links.map(l => l.url).join(',') + '|';
+      fingerprint += url + ':scored:' + scored.map(l => l.url).join(',') + '|';
     } else {
-      // Page has content but no scoreable links (e.g. BOB JS-rendered job listings)
-      // Use the page URL itself as the link — it IS the vacancies page
-      console.log(`[checker] ~ No job links found — using page URL (content confirmed)`);
+      // Absolute last resort — page confirmed has content (passed STEP 1)
+      console.log(`[checker] ~ Last resort — using page URL`);
       foundContent = true;
-      if (!bestTitle) bestTitle = title || `Current Opportunities at ${company.name}`;
+      if (!bestTitle) bestTitle = title || `Opportunities at ${company.name}`;
       if (!bestDesc  && desc)  bestDesc = desc;
-      allLinks.push({ url, label: 'View Current Opportunities', score: 1 });
+      allLinks.push({ url, label: 'View Opportunities' });
       fingerprint += url + ':page-url|';
     }
   }
@@ -337,7 +523,7 @@ async function checkCompany(company) {
   console.log(`\n[checker] RESULT: ${company.name} — ${topLinks.length} links, content: ${foundContent}`);
 
   if (!foundContent) {
-    console.log(`[checker] → SKIP — nothing found\n`);
+    console.log(`[checker] → SKIP\n`);
     company.lastChecked = new Date();
     await company.save();
     return null;
@@ -360,9 +546,9 @@ async function checkCompany(company) {
     };
     company.updates.unshift(newUpdate);
     if (company.updates.length > 50) company.updates.length = 50;
-    console.log(`[checker] ✓ Update created: "${newUpdate.title}"`);
+    console.log(`[checker] ✓ Update: "${newUpdate.title}"`);
   } else {
-    console.log(`[checker] ~ No change detected`);
+    console.log(`[checker] ~ No change`);
   }
 
   company.lastContent = currentContent;
@@ -372,7 +558,7 @@ async function checkCompany(company) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// DAILY CHECK
+// DAILY CHECK — sequential to avoid Puppeteer memory issues
 // ─────────────────────────────────────────────────────────────
 
 async function runDailyCheck() {
@@ -384,9 +570,9 @@ async function runDailyCheck() {
       const companies = await Company.find({ userId: user._id }).select('+lastContent');
       if (!companies.length) continue;
 
-      // Run checks sequentially to avoid memory issues with Puppeteer
       for (const c of companies) {
-        try { await checkCompany(c); } catch (e) { console.error(`[checker] Error on ${c.name}:`, e.message); }
+        try { await checkCompany(c); }
+        catch (e) { console.error(`[checker] ${c.name} error:`, e.message); }
       }
 
       const fresh  = await Company.find({ userId: user._id });
@@ -408,7 +594,7 @@ async function runDailyCheck() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// EMAIL DIGEST
+// EMAIL DIGEST (unchanged)
 // ─────────────────────────────────────────────────────────────
 
 async function sendDigest(user, companies, updates) {
@@ -418,56 +604,50 @@ async function sendDigest(user, companies, updates) {
 
   const updatesHtml = updates.length
     ? updates.map(u => `
-        <div style="margin-bottom:16px;padding:20px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa">
-          <div style="color:#6366f1;font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:6px">${u.company}</div>
-          <h3 style="margin:0 0 8px;font-size:15px;color:#111">${u.title}</h3>
-          <p style="color:#6b7280;font-size:13px;margin:0 0 12px;line-height:1.5">${u.description}</p>
-          <div>
+        <div style="margin-bottom:16px;padding:20px;border:1px solid #e5e7eb;border-radius:10px">
+          <div style="color:#6366f1;font-size:12px;font-weight:700;margin-bottom:6px">${u.company.toUpperCase()}</div>
+          <h3 style="margin:0 0 8px;font-size:15px">${u.title}</h3>
+          <p style="color:#6b7280;font-size:13px;margin:0 0 12px">${u.description}</p>
           ${u.applyLinks && u.applyLinks.length > 1
             ? u.applyLinks.map((link, i) => {
-                const label  = u.applyLabels?.[i] || `Document ${i + 1}`;
-                const isPdf  = link.toLowerCase().includes('.pdf');
+                const label = u.applyLabels?.[i] || `Document ${i + 1}`;
+                const isPdf = link.toLowerCase().includes('.pdf');
                 return `<a href="${link}" target="_blank"
-                  style="display:inline-block;margin:4px 4px 0 0;padding:7px 14px;
+                  style="display:inline-block;margin:4px 4px 0 0;padding:8px 16px;
                   background:#ede9fe;color:#6366f1;border-radius:6px;
                   font-size:12px;font-weight:700;text-decoration:none">
-                  ${isPdf ? '📄' : '🔗'} ${label}
-                </a>`;
+                  ${isPdf ? '📄' : '🔗'} ${label}</a>`;
               }).join('')
             : u.applyLink
               ? `<a href="${u.applyLink}" target="_blank"
-                  style="display:inline-block;padding:9px 22px;background:#6366f1;
+                  style="display:inline-block;padding:8px 20px;background:#6366f1;
                   color:#fff;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">
-                  View Openings →
-                </a>`
+                  View Openings →</a>`
               : ''
           }
-          </div>
         </div>`).join('')
-    : `<p style="color:#9ca3af;text-align:center;padding:32px 0">No new updates today. We'll keep watching!</p>`;
+    : `<p style="color:#9ca3af;text-align:center;padding:32px">No new updates today.</p>`;
 
   const html = `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:auto;background:#fff">
-      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:36px 32px;border-radius:12px 12px 0 0;text-align:center">
-        <h1 style="margin:0;font-size:24px;color:#fff;font-weight:800">⚡ SK Career Upstep</h1>
-        <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:13px">
+    <div style="font-family:sans-serif;max-width:600px;margin:auto">
+      <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px;border-radius:12px 12px 0 0;text-align:center;color:#fff">
+        <h1 style="margin:0;font-size:22px">⚡ SK Career Upstep</h1>
+        <p style="margin:8px 0 0;opacity:0.8;font-size:13px">
           ${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
         </p>
       </div>
-      <div style="padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
-        <p style="margin:0 0 4px;color:#374151">Hi <strong>${user.name}</strong>,</p>
-        <p style="margin:0 0 24px;color:#6b7280;font-size:13px">
-          Monitoring <strong>${companies.length}</strong> organisation${companies.length !== 1 ? 's' : ''} for you.
-        </p>
-        <h2 style="font-size:15px;font-weight:700;color:#111;border-bottom:2px solid #6366f1;padding-bottom:10px;margin:0 0 20px">
-          ${updates.length ? `🔔 ${updates.length} New Update${updates.length !== 1 ? 's' : ''}` : `📋 Today's Summary`}
+      <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
+        <p>Hi <strong>${user.name}</strong>,</p>
+        <p>Monitoring <strong>${companies.length}</strong> compan${companies.length===1?'y':'ies'}.</p>
+        <h2 style="font-size:16px;border-bottom:2px solid #6366f1;padding-bottom:8px">
+          ${updates.length ? `🔔 ${updates.length} New Update(s)` : `📋 Today's Summary`}
         </h2>
         ${updatesHtml}
-        <div style="text-align:center;margin-top:28px;padding-top:20px;border-top:1px solid #f3f4f6">
-          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}"
+        <div style="text-align:center;margin-top:24px">
+          <a href="${process.env.FRONTEND_URL||'http://localhost:3000'}"
              style="display:inline-block;padding:13px 36px;background:#6366f1;
-             color:#fff;border-radius:8px;font-weight:800;text-decoration:none;font-size:14px">
-            Open SK Career →
+             color:#fff;border-radius:8px;font-weight:800;text-decoration:none">
+            Login & Apply →
           </a>
         </div>
       </div>
@@ -475,10 +655,6 @@ async function sendDigest(user, companies, updates) {
 
   await sendMail(user.email, subject, html);
 }
-
-// ─────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────
 
 function pageSimilarity(a, b) {
   const setA = new Set(a.toLowerCase().split(/\s+/));
