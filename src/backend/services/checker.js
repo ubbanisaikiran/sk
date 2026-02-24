@@ -4,23 +4,23 @@
  * Covers all Indian PSU / Bank / Cooperative career portals:
  *
  * TYPE A  ASP.NET / Static HTML tables (.aspx, .asp, .html)
- *         BPCL, RBI, NABARD, PNB, BEL, CONCOR, IRCTC, KRIBHCO
- *         → axios fetch → job table detection → extract tbody rows
+ * BPCL, RBI, NABARD, PNB, BEL, CONCOR, IRCTC, KRIBHCO
+ * → axios fetch → job table detection → extract tbody rows
  *
  * TYPE B  Govt NIC-style, PDF-heavy
- *         ONGC, OIL, ISRO, DRDO, BARC, CSIR, NIC, IOCL, HPCL, Coal India
- *         → axios fetch → PDF/doc link with job context
+ * ONGC, OIL, ISRO, DRDO, BARC, CSIR, NIC, IOCL, HPCL, Coal India
+ * → axios fetch → PDF/doc link with job context
  *
  * TYPE C  Corporate CMS (Drupal/WordPress/custom)
- *         HAL, POWERGRID, PFC, REC, EIL, NMDC, NBCC, RVNL,
- *         IREDA, NALCO, SIDBI, IFFCO, NAFED, GAIL
- *         → axios fetch → named section → extract links
+ * HAL, POWERGRID, PFC, REC, EIL, NMDC, NBCC, RVNL,
+ * IREDA, NALCO, SIDBI, IFFCO, NAFED, GAIL
+ * → axios fetch → named section → extract links
  *
  * TYPE D  JS-rendered / React / Angular / ATS portals
- *         BHEL careers.bhel.in, NTPC careers.ntpc.co.in,
- *         SAIL sailcareers.com, Amul careers.amul.com,
- *         SEBI, SBI, IBPS, BOB, Canara, Union Bank
- *         → Puppeteer → scored link extraction
+ * BHEL careers.bhel.in, NTPC careers.ntpc.co.in,
+ * SAIL sailcareers.com, Amul careers.amul.com,
+ * SEBI, SBI, IBPS, BOB, Canara, Union Bank
+ * → Puppeteer → scored link extraction
  */
 
 const axios   = require('axios');
@@ -130,6 +130,7 @@ const TABLE_HEADER_KEYWORDS = [
   'job title', 'post', 'position', 'registration', 'apply',
   'advt', 'advertisement', 'sr.', 's.no', 'serial no',
   'ref', 'category', 'published',
+  'title', 'description', 'file', 'document', 'issue date', 'name of'
 ];
 
 /** Always skip these regardless of context. */
@@ -205,12 +206,12 @@ async function puppeteerFetch(url) {
   try {
     let puppeteer, execPath, args;
 
-    try {                                           // Railway production
+    try {                                               // Railway production
       const chromium = require('@sparticuz/chromium');
       puppeteer  = require('puppeteer-core');
       execPath   = await chromium.executablePath();
       args       = chromium.args;
-    } catch {                                       // Local dev
+    } catch {                                           // Local dev
       puppeteer  = require('puppeteer');
       execPath   = undefined;
       args       = ['--no-sandbox', '--disable-setuid-sandbox',
@@ -275,7 +276,7 @@ function resolve(href, base) {
  * Returns true if the link is a same-domain navigation page
  * (parent or sibling) rather than a job/doc link.
  * e.g. /career when page is /career/current-openings → nav
- *      /career/final-results when page is /career/current-openings → nav
+ * /career/final-results when page is /career/current-openings → nav
  */
 function isNavLink(fullUrl, pageUrl) {
   try {
@@ -513,7 +514,7 @@ function universalScorer($, pageUrl) {
 
     // Context: nearest meaningful ancestor up to 700 chars
     const ctx = $(a)
-      .closest('tr,li,article,[class*="card"],[class*="item"],[class*="post"],div')
+      .closest('tr,li,article,[class*="card"],[class*="item"],[class*="post"],[class*="views-row"],[class*="list-row"]')
       .first().text().replace(/\s+/g, ' ').trim().slice(0, 700);
 
     const s = score(href, text, ctx);
@@ -524,11 +525,20 @@ function universalScorer($, pageUrl) {
     if (HARD_SKIP.some(p => url.toLowerCase().includes(p))) return;
     if (isNavLink(url, pageUrl)) return;
 
+    // LABEL ENRICHMENT: Steal context if the link text is too short/generic
+    let finalLabel = text || 'View Details';
+    if (finalLabel.length < 15 && $(a).closest('tr').length) {
+      const rowTitle = $(a).closest('tr').find('td, th').first().text().replace(/\s+/g, ' ').trim();
+      if (rowTitle && rowTitle.length > 5 && rowTitle !== finalLabel) {
+        finalLabel = rowTitle.slice(0, 100) + ' (' + text + ')';
+      }
+    }
+
     const existing = bucket.find(l => l.url === url);
     if (existing) {
-      if (s > existing.score) { existing.score = s; existing.label = text; }
+      if (s > existing.score) { existing.score = s; existing.label = finalLabel; }
     } else {
-      bucket.push({ url, label: text || 'View Details', score: s });
+      bucket.push({ url, label: finalLabel, score: s });
     }
   });
 
@@ -837,21 +847,8 @@ async function sendDigest(user, companies, updates) {
     : `📋 Daily digest: ${companies.length} org${companies.length !== 1 ? 's' : ''} checked — SK Career`;
 
   const updatesHtml = updates.length
-    ? updates.map(u => `
-      <div style="margin-bottom:16px;padding:20px;border:1px solid #e5e7eb;
-                  border-radius:10px;background:#fafafa">
-        <div style="color:#6366f1;font-size:11px;font-weight:700;
-                    text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
-          ${u.company}
-        </div>
-        <h3 style="margin:0 0 8px;font-size:15px;color:#111;font-weight:700">
-          ${u.title}
-        </h3>
-        <p style="color:#6b7280;font-size:13px;margin:0 0 14px;line-height:1.6">
-          ${u.description}
-        </p>
-        <div>
-          ${u.applyLinks && u.applyLinks.length > 1
+      ? updates.map(u => {
+          const links = u.applyLinks && u.applyLinks.length > 1
             ? u.applyLinks.map((link, i) => {
                 const label = u.applyLabels?.[i] || `Document ${i + 1}`;
                 const isPdf = link.toLowerCase().includes('.pdf');
@@ -867,10 +864,25 @@ async function sendDigest(user, companies, updates) {
                          color:#fff;border-radius:7px;font-size:13px;
                          font-weight:700;text-decoration:none">
                   View Openings →</a>`
-              : ''
-          }
-        </div>
-      </div>`).join('')
+              : '';
+          return `
+    <div style="margin-bottom:16px;padding:20px;border:1px solid #e5e7eb;
+                border-radius:10px;background:#fafafa">
+      <div style="color:#6366f1;font-size:11px;font-weight:700;
+                  text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+        ${u.company}
+      </div>
+      <h3 style="margin:0 0 8px;font-size:15px;color:#111;font-weight:700">
+        ${u.title}
+      </h3>
+      <p style="color:#6b7280;font-size:13px;margin:0 0 14px;line-height:1.6">
+        ${u.description}
+      </p>
+      <div>
+        ${links}
+      </div>
+    </div>`;
+        }).join('')
     : `<div style="text-align:center;padding:40px 0;color:#9ca3af">
          <div style="font-size:32px;margin-bottom:12px">👀</div>
          <p style="margin:0;font-size:14px">No new updates today. Watching for you!</p>
@@ -900,7 +912,7 @@ async function sendDigest(user, companies, updates) {
           organisation${companies.length !== 1 ? 's' : ''} for you.
         </p>
         <h2 style="font-size:15px;font-weight:700;color:#111;margin:0 0 20px;
-                   padding-bottom:12px;border-bottom:2px solid #6366f1">
+                    padding-bottom:12px;border-bottom:2px solid #6366f1">
           ${updates.length
             ? `🔔 ${updates.length} New Update${updates.length !== 1 ? 's' : ''}`
             : `📋 Today's Digest`}
