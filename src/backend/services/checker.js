@@ -13,6 +13,7 @@ const OPENING_SECTION_TITLES = [
   'career opportunit', 'latest opening', 'new opening',
   'available position', 'recruitment notification',
   'ongoing recruitment', 'vacancies', 'vacancy',
+  'recruitment', 'advertisement', 'notification',
   'वर्तमान रिक्तियां', 'भर्ती', 'रिक्ति',
 ];
 
@@ -26,24 +27,25 @@ const EMPTY_SIGNALS = [
   'no results found', 'no recruitment currently',
   'at present no vacancy', 'no data available',
   'no current opportunities',
-  // Hindi
   'कोई रिक्तियां नहीं', 'कोई पद नहीं', 'वर्तमान में कोई',
-  'कोई भर्ती नहीं',
 ];
 
+// Only truly universal non-job URLs
 const SKIP_URLS = [
-  'javascript:', 'mailto:', 'tel:',
-  'facebook.com', 'twitter.com', 'youtube.com',
-  'instagram.com', 'whatsapp.com',
-  'play.google.com', 'apps.apple.com',
-  'privacy', 'disclaimer', 'terms', 'cookie',
-  'sitemap', '/faq', '/help',
-  'locate-us', '/branches', '/atm',
-  'calculator', '/emi',
-  'indiafirstlife', 'buyonline',
+  'javascript:',
+  'mailto:',
+  'tel:',
+  'facebook.com',
+  'twitter.com',
+  'youtube.com',
+  'instagram.com',
+  'whatsapp.com',
+  'play.google.com',
+  'apps.apple.com',
+  'linkedin.com/company',
+  'buyonline',
   'loanapply', 'loan-apply', 'applyloan',
-, 'rbi.org',
-  'bobcrm', 'bobibanking', 'bobcard',
+  'crm', 'banking', 'card',
   'netbanking', 'internetbanking',
 ];
 
@@ -53,11 +55,12 @@ async function fetchPage(url) {
     const res = await axios.get(url, {
       timeout: 20000,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
       },
     });
     const $ = cheerio.load(res.data);
+    // Remove noise
     $('script, style, noscript').remove();
     $('[class*="navbar"],[class*="topbar"],[class*="sidenav"]').remove();
     $('[class*="accessibility"],[class*="toolbar"],[class*="breadcrumb"]').remove();
@@ -70,27 +73,25 @@ async function fetchPage(url) {
   }
 }
 
-// ── Step 1: Full page empty check ────────────────────────────
-// Returns true if page clearly says "no vacancies"
+// ── Full page empty check ─────────────────────────────────────
 function pageIsEmpty($) {
-  // Check the WHOLE body text first
   const bodyText = $('body').text().replace(/\s+/g, ' ').toLowerCase();
   return EMPTY_SIGNALS.some(e => bodyText.includes(e));
 }
 
-// ── Step 2: Find the openings section ────────────────────────
+// ── Find openings section ─────────────────────────────────────
 function findOpeningsSection($) {
   let bestEl    = null;
   let bestScore = 0;
 
-  // Check headings
+  // Search headings first
   $('h1, h2, h3, h4, h5').each((_, el) => {
     const text = $(el).text().replace(/\s+/g, ' ').trim().toLowerCase();
     const score = OPENING_SECTION_TITLES.filter(t => text.includes(t)).length;
     if (score > bestScore) { bestScore = score; bestEl = el; }
   });
 
-  // Check section/div id and class names
+  // Also check section/div ids and classes
   $('section, article, div').each((_, el) => {
     const id  = ($(el).attr('id')    || '').toLowerCase();
     const cls = ($(el).attr('class') || '').toLowerCase();
@@ -103,7 +104,6 @@ function findOpeningsSection($) {
   const tag = bestEl.tagName?.toLowerCase();
 
   if (['h1','h2','h3','h4','h5'].includes(tag)) {
-    // Get meaningful parent container
     const parent = $(bestEl).closest(
       'section, article, [class*="career"], [class*="job"], [class*="opening"], [class*="opportunit"], [class*="vacancy"], [class*="recruit"]'
     );
@@ -114,43 +114,72 @@ function findOpeningsSection($) {
   return $(bestEl);
 }
 
-// ── Step 3: Check section has REAL jobs (not empty) ──────────
-function sectionHasRealJobs($, section) {
+// ── Check if section has real content ────────────────────────
+function sectionHasRealContent($, section) {
   const text = $(section).text().replace(/\s+/g, ' ').toLowerCase();
 
-  // Empty signal inside the section itself
+  // Empty signal in section
   if (EMPTY_SIGNALS.some(e => text.includes(e))) {
-    console.log('[checker] ✗ Section contains empty/no-vacancy signal');
+    console.log('[checker] ✗ Section has empty signal');
     return false;
   }
 
-  // Check table — has job header but no data rows = empty
-  let emptyTable = false;
+  // Job table exists but has NO data rows = truly empty
+  let hasJobTableWithNoRows = false;
   $(section).find('table').each((_, table) => {
     const tText = $(table).text().toLowerCase();
-    const hasJobHeader = ['vacancy', 'position', 'post', 'role', 'qualification'].some(k => tText.includes(k));
-    const dataRows = $(table).find('tbody tr').length;
-    if (hasJobHeader && dataRows === 0) { emptyTable = true; return false; }
+    const isJobTable = ['vacancy', 'position', 'post', 'role', 'qualification', 'experience'].some(k => tText.includes(k));
+    const dataRows   = $(table).find('tbody tr').length;
+    // Only flag empty if table has job header AND explicitly zero rows
+    if (isJobTable && dataRows === 0) {
+      hasJobTableWithNoRows = true;
+      return false;
+    }
   });
-  if (emptyTable) {
-    console.log('[checker] ✗ Section has job table header but no data rows');
+
+  if (hasJobTableWithNoRows) {
+    console.log('[checker] ✗ Job table found but has no data rows');
     return false;
   }
 
-  const links = $(section).find('a').length;
-  const rows  = $(section).find('tbody tr, li').length;
-  console.log(`[checker] Section — links:${links} rows:${rows} textLen:${text.length}`);
+  const links   = $(section).find('a').length;
+  const rows    = $(section).find('tbody tr, li').length;
+  const textLen = text.length;
 
-  return (links > 0 || rows > 0) && text.length > 60;
+  console.log(`[checker] Section check — links:${links} rows:${rows} textLen:${textLen}`);
+  return textLen > 60 && (links > 0 || rows > 0);
 }
 
-// ── Step 4: Extract links from section ───────────────────────
+// ── Collect PDFs from any element ────────────────────────────
+function collectPDFs($el, baseUrl, $) {
+  const pdfs = [];
+  ($el ? $($el).find('a') : $('a')).each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const text = $(el).text().replace(/\s+/g, ' ').trim();
+    const isPdf = href.toLowerCase().includes('.pdf') || !!href.toLowerCase().match(/\.(doc|docx)$/);
+    if (!isPdf || text.length < 2) return;
+    if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
+    const fullUrl = href.startsWith('http') ? href : (() => {
+      try { return new URL(href, baseUrl).href; } catch { return null; }
+    })();
+    if (fullUrl && !pdfs.find(l => l.url === fullUrl)) {
+      pdfs.push({ url: fullUrl, label: text });
+    }
+  });
+  return pdfs;
+}
+
+// ── Extract all valid links from section ─────────────────────
 function extractLinks($, section, baseUrl) {
   const links = [];
+
   $(section).find('a').each((_, el) => {
-    const href = $(el).attr('href');
+    const href = $(el).attr('href') || '';
     const text = $(el).text().replace(/\s+/g, ' ').trim();
-    if (!href || text.length < 2) return;
+
+    // Skip empty / anchor-only hrefs
+    if (!href || href === '#' || href.startsWith('#')) return;
+    if (text.length < 2) return;
     if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
 
     const fullUrl = href.startsWith('http') ? href : (() => {
@@ -159,8 +188,10 @@ function extractLinks($, section, baseUrl) {
     if (!fullUrl) return;
     if (SKIP_URLS.some(p => fullUrl.toLowerCase().includes(p))) return;
     if (links.find(l => l.url === fullUrl)) return;
+
     links.push({ url: fullUrl, label: text });
   });
+
   return links;
 }
 
@@ -194,84 +225,91 @@ async function checkCompany(company) {
   let foundContent = false;
 
   for (const url of urls) {
-    console.log(`\n[checker] → Fetching: ${url}`);
+    console.log(`\n[checker] → ${url}`);
 
     const $ = await fetchPage(url);
     if (!$) { fingerprint += url + ':fetch-failed|'; continue; }
 
     // ══ STEP 1: Full page empty check ════════════════════════
     if (pageIsEmpty($)) {
-      console.log(`[checker] ✗ STEP 1 FAIL — Page says "no vacancies"`);
+      console.log(`[checker] ✗ STEP 1 — Page says no vacancies, skipping`);
       fingerprint += url + ':page-empty|';
       continue;
     }
-    console.log(`[checker] ✓ STEP 1 PASS — No empty signals on full page`);
+    console.log(`[checker] ✓ STEP 1 — Page has potential openings`);
 
     // ══ STEP 2: Find openings section ════════════════════════
     const section = findOpeningsSection($);
 
     if (!section || !section.length) {
-      console.log(`[checker] ✗ STEP 2 FAIL — No openings section found`);
-
-      // Fallback: collect PDFs from anywhere on the page
-      const pdfs = [];
-      $('a').each((_, el) => {
-        const href = $(el).attr('href') || '';
-        const text = $(el).text().trim();
-        const isPdf = href.toLowerCase().includes('.pdf') || href.toLowerCase().match(/\.(doc|docx)$/);
-        if (!isPdf || text.length < 2) return;
-        if (SKIP_URLS.some(p => href.toLowerCase().includes(p))) return;
-        const fullUrl = href.startsWith('http') ? href : (() => {
-          try { return new URL(href, url).href; } catch { return null; }
-        })();
-        if (fullUrl && !pdfs.find(l => l.url === fullUrl)) {
-          pdfs.push({ url: fullUrl, label: text });
-        }
-      });
-
+      console.log(`[checker] ~ STEP 2 — No named section found, trying PDF fallback`);
+      // CEL type: no clear section heading, but PDFs exist
+      const pdfs = collectPDFs(null, url, $);
       if (pdfs.length > 0) {
-        console.log(`[checker] ✓ STEP 2 FALLBACK — ${pdfs.length} PDFs found`);
+        console.log(`[checker] ✓ PDF fallback — ${pdfs.length} PDFs found`);
         allLinks.push(...pdfs.filter(l => !allLinks.find(x => x.url === l.url)));
         foundContent = true;
+        if (!bestTitle) bestTitle = `Recruitment at ${company.name}`;
         fingerprint += url + ':pdf:' + pdfs.map(l => l.url).join(',') + '|';
       } else {
-        console.log(`[checker] ✗ No PDFs either — nothing found`);
+        console.log(`[checker] ✗ No section and no PDFs found`);
         fingerprint += url + ':no-content|';
       }
       continue;
     }
+    console.log(`[checker] ✓ STEP 2 — Openings section found`);
 
-    console.log(`[checker] ✓ STEP 2 PASS — Openings section found`);
+    // ══ STEP 3: Does section have real content? ═══════════════
+    if (!sectionHasRealContent($, section)) {
+      console.log(`[checker] ~ STEP 3 — Section empty, trying PDF fallback within section`);
 
-    // ══ STEP 3: Section has real jobs? ═══════════════════════
-    if (!sectionHasRealJobs($, section)) {
-      console.log(`[checker] ✗ STEP 3 FAIL — Section is empty/no real jobs`);
-      fingerprint += url + ':section-empty|';
+      // Even if section "looks empty" by text/rows, check for PDFs inside it
+      // This catches CEL where section exists but only has PDF links
+      const sectionPdfs = collectPDFs(section, url, $);
+      if (sectionPdfs.length > 0) {
+        console.log(`[checker] ✓ Found ${sectionPdfs.length} PDFs inside section`);
+        allLinks.push(...sectionPdfs.filter(l => !allLinks.find(x => x.url === l.url)));
+        foundContent = true;
+        fingerprint += url + ':section-pdf:' + sectionPdfs.map(l => l.url).join(',') + '|';
+      } else {
+        console.log(`[checker] ✗ STEP 3 — Section truly empty`);
+        fingerprint += url + ':section-empty|';
+      }
       continue;
     }
-    console.log(`[checker] ✓ STEP 3 PASS — Section has real job content`);
+    console.log(`[checker] ✓ STEP 3 — Section has real content`);
 
-    // ══ STEP 4: Extract links from section only ═══════════════
+    // ══ STEP 4: Extract links from section ═══════════════════
     const sectionLinks = extractLinks($, section, url);
     const title        = extractTitle($, section);
     const desc         = extractDesc($, section);
 
-    console.log(`[checker] ✓ STEP 4 — Extracted ${sectionLinks.length} links:`);
-    sectionLinks.forEach(l => console.log(`   • [${l.label}] → ${l.url}`));
+    console.log(`[checker] ✓ STEP 4 — Extracted ${sectionLinks.length} links`);
+    sectionLinks.forEach(l => console.log(`   • ${l.label} → ${l.url}`));
 
-    if (sectionLinks.length > 0 || desc) {
+    if (sectionLinks.length > 0) {
+      // Normal case — section has extractable links (CEL PDFs, BOB job pages, etc.)
       foundContent = true;
       allLinks.push(...sectionLinks.filter(l => !allLinks.find(x => x.url === l.url)));
       if (!bestTitle && title) bestTitle = title;
       if (!bestDesc  && desc)  bestDesc  = desc;
       fingerprint += url + ':' + sectionLinks.map(l => l.url).join(',') + '|';
+    } else {
+      // Section has content (text, job descriptions) but links are JS-rendered
+      // This is the Bank of Baroda case — Apply Now buttons load via JS
+      // Use the page URL itself as the apply link
+      console.log(`[checker] ~ STEP 4 — Links are JS-rendered, using page URL`);
+      foundContent = true;
+      if (!bestTitle && title) bestTitle = title;
+      if (!bestDesc  && desc)  bestDesc  = desc;
+      allLinks.push({ url, label: 'View Current Opportunities' });
+      fingerprint += url + ':js-rendered|';
     }
   }
 
   const topLinks = allLinks.slice(0, 6);
   console.log(`\n[checker] RESULT: ${company.name} — links:${topLinks.length} content:${foundContent}`);
 
-  // No real content found — don't create update
   if (!foundContent && !bestDesc) {
     console.log(`[checker] → SKIP — no real openings\n`);
     company.lastChecked = new Date();
@@ -356,7 +394,7 @@ async function sendDigest(user, companies, updates) {
                 </a>`;
               }).join('')
             : u.applyLink
-              ? `<a href="${u.applyLink}" style="display:inline-block;padding:8px 20px;background:#6366f1;color:#fff;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">Apply Now →</a>`
+              ? `<a href="${u.applyLink}" style="display:inline-block;padding:8px 20px;background:#6366f1;color:#fff;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none">View Openings →</a>`
               : ''
           }
         </div>
