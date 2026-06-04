@@ -4,14 +4,14 @@ export default function Navbar({ user, onLogout, onHome, onCompanies, showCompan
   return (
     <nav className="career-nav">
       <div className="career-nav__brand" onClick={onHome} style={{ cursor: 'pointer' }}>
-        <div className="career-nav__logo">⚡</div>
+        <div className="career-nav__logo">{'\u26A1'}</div>
         <span className="career-nav__title">Career Upgrade</span>
       </div>
 
       <div className="career-nav__actions">
         {showCompaniesBtn && (
           <button className="career-btn career-btn--outline" onClick={onCompanies}>
-            📡 Track Companies
+            {'\u{1F4E1}'} Track Companies
           </button>
         )}
 

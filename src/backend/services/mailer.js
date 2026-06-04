@@ -1,12 +1,11 @@
 const nodemailer = require('nodemailer');
 
-let _transport = null;
-
-
+let transportInstance = null;
 
 function transport() {
-  if (_transport) return _transport;
-  _transport = nodemailer.createTransport({
+  if (transportInstance) return transportInstance;
+
+  transportInstance = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.MAIL_USER,
@@ -19,21 +18,24 @@ function transport() {
     greetingTimeout: 30000,
     socketTimeout: 30000,
   });
-  return _transport;
+
+  return transportInstance;
 }
 
 async function sendMail(to, subject, html) {
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    console.warn('[mailer] MAIL_USER / MAIL_PASS not set — email skipped');
+    console.warn('[mailer] MAIL_USER / MAIL_PASS not set - email skipped');
     return;
   }
+
   try {
     const info = await transport().sendMail({
-      from: `"SK Career Upgrade ⚡" <${process.env.MAIL_USER}>`,
+      from: `"SK Career Upgrade \u26A1" <${process.env.MAIL_USER}>`,
       to,
       subject,
       html,
     });
+
     console.log('[mailer] Sent:', info.messageId);
     return info;
   } catch (err) {

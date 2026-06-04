@@ -172,7 +172,7 @@ async function puppeteerFetch(url) {
   try {
     let puppeteer, execPath, args;
 
-    try {                                           // Railway production
+    try {                                           // Vercel production
       const chromium = require('@sparticuz/chromium');
       puppeteer  = require('puppeteer-core');
       execPath   = await chromium.executablePath();

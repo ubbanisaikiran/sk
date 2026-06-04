@@ -1,23 +1,72 @@
-const BASE_URL = process.env.REACT_APP_API_URL || 'https://sk-production-dca4.up.railway.app/api';
+const LOCAL_API_URL = 'http://localhost:5000/api';
+const SAME_ORIGIN_API_URL = '/api';
+
+const isLocalBrowser = () => {
+  if (typeof window === 'undefined') return false;
+
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
+};
+
+const resolveBaseUrls = () => {
+  if (process.env.REACT_APP_API_URL) return [process.env.REACT_APP_API_URL];
+  return isLocalBrowser() ? [LOCAL_API_URL, SAME_ORIGIN_API_URL] : [SAME_ORIGIN_API_URL];
+};
 
 const getToken = () => localStorage.getItem('sk_career_token');
 
 const request = async (method, path, body = null, auth = false) => {
   const headers = { 'Content-Type': 'application/json' };
-  if (auth) headers['Authorization'] = `Bearer ${getToken()}`;
+  if (auth) headers.Authorization = `Bearer ${getToken()}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : null,
-  });
+  const baseUrls = resolveBaseUrls();
+  let lastNetworkError = null;
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Something went wrong');
-  return data;
+  for (const baseUrl of baseUrls) {
+    try {
+      const response = await fetch(`${baseUrl}${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : null,
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const rawText = await response.text();
+      let data = null;
+
+      if (contentType.includes('application/json') && rawText) {
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          data = null;
+        }
+      }
+
+      if (!response.ok) {
+        const fallbackMessage = rawText && !contentType.includes('application/json')
+          ? rawText.trim()
+          : '';
+        throw new Error(
+          data?.message ||
+          fallbackMessage ||
+          `Request failed with status ${response.status} ${response.statusText}`
+        );
+      }
+
+      return data || {};
+    } catch (err) {
+      if (err instanceof TypeError) {
+        lastNetworkError = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  if (lastNetworkError) {
+    throw new Error(`Unable to reach the career API. Tried: ${baseUrls.join(', ')}.`);
+  }
 };
 
-// ── Auth ──────────────────────────────────────────────────────
 export const authAPI = {
   login: (email, password) =>
     request('POST', '/auth/login', { email, password }),
@@ -27,9 +76,11 @@ export const authAPI = {
 
   forgotPassword: (email) =>
     request('POST', '/auth/forgot-password', { email }),
+
+  resetPassword: (token, password) =>
+    request('POST', '/auth/reset-password', { token, password }),
 };
 
-// ── Companies ─────────────────────────────────────────────────
 export const companyAPI = {
   getAll: () =>
     request('GET', '/companies', null, true),
@@ -48,4 +99,9 @@ export const companyAPI = {
 
   updateJobStatus: (companyId, updateId, status) =>
     request('PATCH', `/companies/${companyId}/updates/${updateId}`, { status }, true),
+};
+
+export const agriStackAPI = {
+  checkBatch: (rows) =>
+    request('POST', '/agri-stack/check-batch', { rows }),
 };

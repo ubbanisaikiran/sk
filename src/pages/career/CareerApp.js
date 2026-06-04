@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Auth from './Auth';
 import Home from './Home';
 import CompanyTracker from './CompanyTracker';
@@ -10,11 +10,17 @@ const PAGES = {
   COMPANIES: 'companies',
 };
 
-export default function CareerApp({ onExit }) {
+export default function CareerApp({ onExit, resetIntent, onResetResolved }) {
   const [page, setPage] = useState(PAGES.AUTH);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    if (resetIntent?.token) {
+      setUser(null);
+      setPage(PAGES.AUTH);
+      return;
+    }
+
     const token = localStorage.getItem('sk_career_token');
     const savedUser = localStorage.getItem('sk_career_user');
     if (token && savedUser) {
@@ -26,13 +32,14 @@ export default function CareerApp({ onExit }) {
         localStorage.removeItem('sk_career_user');
       }
     }
-  }, []);
+  }, [resetIntent]);
 
   const handleLogin = (userData, token) => {
     localStorage.setItem('sk_career_token', token);
     localStorage.setItem('sk_career_user', JSON.stringify(userData));
     setUser(userData);
     setPage(PAGES.HOME);
+    if (onResetResolved) onResetResolved();
   };
 
   const handleLogout = () => {
@@ -47,7 +54,14 @@ export default function CareerApp({ onExit }) {
 
   return (
     <div className="career-root">
-      {page === PAGES.AUTH && <Auth onLogin={handleLogin} onBack={onExit} />}
+      {page === PAGES.AUTH && (
+        <Auth
+          onBack={onExit}
+          onLogin={handleLogin}
+          onResetResolved={onResetResolved}
+          resetIntent={resetIntent}
+        />
+      )}
       {page === PAGES.HOME && <Home {...pageProps} />}
       {page === PAGES.COMPANIES && <CompanyTracker {...pageProps} />}
     </div>
