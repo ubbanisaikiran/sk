@@ -146,11 +146,11 @@ export default function Launch({ onPortfolio, onCareer, onAgriStack, onCustomReq
 
               <div className="launch-visual__stats">
                 <div className="launch-visual__stat">
-                  <span>10+</span>
+                  <span>7+</span>
                   <small>Projects</small>
                 </div>
                 <div className="launch-visual__stat">
-                  <span>5+</span>
+                  <span>2+</span>
                   <small>Products</small>
                 </div>
                 <div className="launch-visual__stat launch-visual__stat--accent">
