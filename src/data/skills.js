@@ -1,1 +1,1 @@
-export const skills = ['HTML', 'CSS', 'JavaScript', 'React', 'Node.js'];
+export const skills = ['Power BI', 'Excel', 'SQL', 'Python', 'MERN Stack', 'Figma', 'Notion', 'React-Native']

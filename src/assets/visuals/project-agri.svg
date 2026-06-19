@@ -1,0 +1,21 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="800" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#F0FDF4"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" rx="48" fill="url(#bg)"/>
+  <rect x="100" y="114" width="288" height="332" rx="38" fill="white" opacity="0.9" stroke="#E5E7EB"/>
+  <rect x="136" y="146" width="208" height="18" rx="9" fill="#34C759" opacity="0.22"/>
+  <rect x="136" y="190" width="212" height="18" rx="9" fill="#E2E8F0"/>
+  <rect x="136" y="234" width="212" height="18" rx="9" fill="#E2E8F0"/>
+  <rect x="136" y="278" width="212" height="18" rx="9" fill="#E2E8F0"/>
+  <rect x="136" y="322" width="212" height="18" rx="9" fill="#E2E8F0"/>
+  <circle cx="548" cy="214" r="104" fill="#D1FAE5"/>
+  <path d="M548 156C514 186 506 230 528 260C543 281 565 286 586 278C608 271 622 251 623 226C624 191 600 164 548 156Z" fill="#059669"/>
+  <path d="M548 182C545 216 546 238 548 276" stroke="#F8FAFC" stroke-width="10" stroke-linecap="round"/>
+  <rect x="442" y="338" width="230" height="78" rx="24" fill="white" opacity="0.92" stroke="#E5E7EB"/>
+  <rect x="470" y="362" width="152" height="16" rx="8" fill="#34C759" opacity="0.22"/>
+  <rect x="470" y="392" width="96" height="16" rx="8" fill="#E2E8F0"/>
+</svg>

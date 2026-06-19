@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { HashRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import './App.css';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import About from './pages/About';
@@ -9,6 +11,7 @@ import Skills from './pages/Skills';
 import Footer from './components/Footer';
 import CareerApp from './pages/career/CareerApp';
 import AgriStackChecker from './pages/career/AgriStackChecker';
+import CustomRequest from './pages/CustomRequest';
 import Launch from './pages/Launch';
 
 const readResetIntent = () => {
@@ -32,174 +35,184 @@ const clearCareerQuery = () => {
   window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
 };
 
-function App() {
-  const initialResetIntent = readResetIntent();
-  const [showLaunch, setShowLaunch] = useState(() => !initialResetIntent);
-  const [showCareer, setShowCareer] = useState(() => Boolean(initialResetIntent));
-  const [showAgriStack, setShowAgriStack] = useState(false);
-  const [resetIntent, setResetIntent] = useState(() => initialResetIntent);
+function FloatingBackButton({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="app-back-button"
+      type="button"
+    >
+      {'\u2190'} Portfolio
+    </button>
+  );
+}
+
+function ServiceRail({ onCareer, onAgriStack, onCustomRequest }) {
+  return (
+    <div className="app-service-rail">
+      <button
+        onClick={onCareer}
+        className="app-service-rail__button app-service-rail__button--career"
+        type="button"
+      >
+        <span>⚡</span>
+        Career Upgrade
+      </button>
+
+      <button
+        onClick={onAgriStack}
+        className="app-service-rail__button app-service-rail__button--agri"
+        type="button"
+      >
+        <span>🌾</span>
+        TS Agri Stack
+      </button>
+
+      <button
+        onClick={onCustomRequest}
+        className="app-service-rail__button app-service-rail__button--custom"
+        type="button"
+      >
+        <span>✦</span>
+        Custom Build
+      </button>
+    </div>
+  );
+}
+
+function PortfolioLayout({ showLaunch, setShowLaunch, onCareer, onAgriStack, onCustomRequest }) {
+  const location = useLocation();
+
+  return (
+    <div className="app-shell">
+      {showLaunch && location.pathname === '/' && (
+        <Launch
+          onPortfolio={() => setShowLaunch(false)}
+          onAgriStack={onAgriStack}
+          onCareer={onCareer}
+          onCustomRequest={onCustomRequest}
+        />
+      )}
+
+      <Navbar />
+      <ServiceRail
+        onCareer={onCareer}
+        onAgriStack={onAgriStack}
+        onCustomRequest={onCustomRequest}
+      />
+      <Outlet />
+      <Footer />
+    </div>
+  );
+}
+
+function AppRoutes() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [resetIntent, setResetIntent] = useState(() => readResetIntent());
+  const [showLaunch, setShowLaunch] = useState(() => !readResetIntent());
+
+  useEffect(() => {
+    if (resetIntent && location.pathname !== '/career') {
+      navigate('/career', { replace: true });
+    }
+  }, [location.pathname, navigate, resetIntent]);
 
   const handleResetResolved = () => {
     setResetIntent(null);
     clearCareerQuery();
   };
 
-  const handleExitCareer = () => {
-    setShowCareer(false);
-    if (resetIntent) handleResetResolved();
+  const openPortfolio = () => {
+    setShowLaunch(false);
+    navigate('/');
   };
 
-  const handleExitAgriStack = () => {
-    setShowAgriStack(false);
+  const openCareer = () => {
+    setShowLaunch(false);
+    navigate('/career');
   };
 
-  if (showAgriStack) {
-    return (
-      <>
-        <div className="career-root">
-          <AgriStackChecker />
-        </div>
-        <button
-          onClick={handleExitAgriStack}
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '24px',
-            zIndex: 99999,
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            color: '#fff',
-            padding: '10px 20px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 700,
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s',
-          }}
-        >
-          {'\u2190'} Portfolio
-        </button>
-      </>
-    );
-  }
+  const openAgriStack = () => {
+    setShowLaunch(false);
+    navigate('/agri-stack');
+  };
 
-  if (showCareer) {
-    return (
-      <>
-        <CareerApp
-          onExit={handleExitCareer}
-          onResetResolved={handleResetResolved}
-          resetIntent={resetIntent}
-        />
-        <button
-          onClick={handleExitCareer}
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '24px',
-            zIndex: 99999,
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            color: '#fff',
-            padding: '10px 20px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 700,
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s',
-          }}
-        >
-          {'\u2190'} Portfolio
-        </button>
-      </>
-    );
-  }
+  const openCustomRequest = () => {
+    setShowLaunch(false);
+    navigate('/custom-request');
+  };
 
   return (
-    <div>
-      {showLaunch && (
-        <Launch
-          onPortfolio={() => setShowLaunch(false)}
-          onAgriStack={() => {
-            setShowLaunch(false);
-            setShowCareer(false);
-            setShowAgriStack(true);
-          }}
-          onCareer={() => {
-            setShowLaunch(false);
-            setShowAgriStack(false);
-            setShowCareer(true);
-          }}
-        />
-      )}
-
-      <Navbar />
-
-      <div
-        style={{
-          position: 'fixed',
-          top: '100px',
-          right: '32px',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-        }}
+    <Routes>
+      <Route
+        element={(
+          <PortfolioLayout
+            showLaunch={showLaunch}
+            setShowLaunch={setShowLaunch}
+            onCareer={openCareer}
+            onAgriStack={openAgriStack}
+            onCustomRequest={openCustomRequest}
+          />
+        )}
       >
-        <button
-          onClick={() => {
-            setShowLaunch(false);
-            setShowAgriStack(false);
-            setShowCareer(true);
-          }}
-          style={{
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            border: 'none',
-            color: '#fff',
-            padding: '10px 20px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: 700,
-            boxShadow: '0 0 24px rgba(99,102,241,0.5)',
-          }}
-        >
-          {'\u26A1'} Career Upgrade
-        </button>
+        <Route
+          path="/"
+          element={(
+            <Home
+              onCareer={openCareer}
+              onAgriStack={openAgriStack}
+              onCustomRequest={openCustomRequest}
+            />
+          )}
+        />
+        <Route path="/about" element={<About />} />
+        <Route path="/skills" element={<Skills />} />
+        <Route path="/education" element={<Education />} />
+        <Route path="/projects" element={<Projects />} />
+        <Route path="/contact" element={<Contact />} />
+      </Route>
 
-        <button
-          onClick={() => {
-            setShowLaunch(false);
-            setShowCareer(false);
-            setShowAgriStack(true);
-          }}
-          style={{
-            background: 'linear-gradient(135deg, #16a34a, #22c55e)',
-            border: 'none',
-            color: '#fff',
-            padding: '10px 20px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: 700,
-            boxShadow: '0 0 24px rgba(34,197,94,0.35)',
-          }}
-        >
-          TS Agri Stack
-        </button>
-      </div>
+      <Route
+        path="/career"
+        element={(
+          <>
+            <CareerApp
+              onExit={openPortfolio}
+              onResetResolved={handleResetResolved}
+              resetIntent={resetIntent}
+            />
+            <FloatingBackButton onClick={openPortfolio} />
+          </>
+        )}
+      />
+      <Route
+        path="/agri-stack"
+        element={(
+          <>
+            <div className="career-root">
+              <AgriStackChecker />
+            </div>
+            <FloatingBackButton onClick={openPortfolio} />
+          </>
+        )}
+      />
+      <Route
+        path="/custom-request"
+        element={<CustomRequest onBack={openPortfolio} />}
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
 
-      <div id="home"><Home /></div>
-      <div id="about"><About /></div>
-      <div id="skills"><Skills /></div>
-      <div id="Education"><Education /></div>
-      <div id="projects"><Projects /></div>
-      <div id="contact"><Contact /></div>
-      <div id="Footer"><Footer /></div>
-    </div>
+function App() {
+  return (
+    <HashRouter>
+      <AppRoutes />
+    </HashRouter>
   );
 }
 
 export default App;
+

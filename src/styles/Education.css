@@ -1,121 +1,215 @@
 .Education-section {
-  padding: 80px 20px;
-  background: #0e0e0e;
-  color: white;
-  text-align: center;
+  width: min(1280px, calc(100% - 56px));
+  margin: 0 auto;
+  padding: 36px 0 24px;
+}
+
+.education-header {
+  max-width: 860px;
+  margin-bottom: 26px;
 }
 
 .Education-title {
-  font-size: 2.5rem;
-  margin-bottom: 40px;
-}
-
-.Education-title span {
-  color: white;
-  position: relative;
-  background: linear-gradient(to right, #d633ff, #f59e0b);
-  padding: 0 8px;
-  border-radius: 5px;
+  margin: 16px 0 0;
+  font-size: clamp(1.55rem, 2.4vw, 2.35rem);
+  line-height: 1.08;
+  font-family: inherit;
+  font-weight: 700;
 }
 
 .Education-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+  gap: 22px;
+  align-items: start;
 }
 
-.service-card {
-  border: 2px solid white;
-  padding: 24px;
-  border-radius: 12px;
+.education-timeline {
+  display: grid;
+  gap: 14px;
+}
+
+.education-step,
+.education-spotlight-copy {
+  border-radius: 28px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--shadow);
+}
+
+.education-step {
+  padding: 20px;
+  color: var(--text);
   text-align: left;
   cursor: pointer;
-  transition: all 0.3s ease;
-  background: #0e0e0e;
+  transition: transform 0.22s ease, border-color 0.22s ease;
 }
 
-.service-card:hover {
-  transform: translateY(-5px);
-}
-
-.service-card.active {
-  background: linear-gradient(135deg, #6e00ff, #f59e0b);
-  color: white;
-  border: none;
-  box-shadow: 0 0 10px 2px #d633ff;
+.education-step:hover,
+.education-step.active {
+  transform: translateX(4px);
+  border-color: rgba(37, 99, 235, 0.24);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.94));
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.12), var(--shadow);
 }
 
 .service-number {
-  font-weight: bold;
+  display: block;
   margin-bottom: 10px;
+  color: var(--accent);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .service-title {
-  font-size: 1.25rem;
-  margin-bottom: 10px;
+  margin: 0 0 10px;
+  font-size: 1.02rem;
 }
 
-.highlight {
-  color: #d633ff;
-  font-weight: bold;
-}
-
-.service-description {
-  color: #ccc;
-  margin-bottom: 20px;
+.service-description,
+.service-read {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
 }
 
 .service-read {
-  color: white;
-  font-weight: bold;
+  margin-top: 10px;
+  color: var(--text);
+  font-weight: 700;
 }
 
-/* 🔹 Tablet Screens */
-@media (max-width: 992px) {
-  .Education-title {
-    font-size: 2rem;
-    margin-bottom: 30px;
-  }
+.education-spotlight-image {
+  position: relative;
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
 
+.education-spotlight-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.education-spotlight-copy {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.education-spotlight-copy span {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.education-spotlight-copy h3 {
+  margin: 0 0 10px;
+  font-size: 1.08rem;
+}
+
+.education-spotlight-copy p {
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 0.94rem;
+}
+
+.education-spotlight-copy strong {
+  display: block;
+  margin: 10px 0 12px;
+}
+
+.education-slider-panel {
+  min-height: 700px;
+  display: grid;
+  grid-template-rows: 320px auto;
+  gap: 14px;
+}
+
+.education-spotlight-image--hero {
+  min-height: 380px;
+}
+
+.education-spotlight-copy--compact {
+  min-height: 0;
+}
+
+.education-slide-indicator {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(29, 29, 31, 0.08);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.education-slide-indicator span,
+.education-slide-indicator strong {
+  display: block;
+}
+
+.education-slide-indicator span {
+  margin-bottom: 4px;
+  color: var(--accent);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.education-slide-indicator strong {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1100px) {
   .Education-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
+    grid-template-columns: 1fr;
   }
 
-  .service-card {
-    padding: 20px;
+  .education-slider-panel {
+    min-height: 0;
   }
 }
 
-/* 🔹 Mobile Screens */
-@media (max-width: 600px) {
+@media (max-width: 760px) {
   .Education-section {
-    padding: 50px 15px;
+    width: min(1280px, calc(100% - 32px));
+    padding-top: 40px;
   }
 
-  .Education-title {
-    font-size: 1.75rem;
-    margin-bottom: 20px;
+  .education-slider-panel {
+    grid-template-rows: 240px auto;
+    gap: 10px;
   }
 
-  .Education-grid {
-    grid-template-columns: 1fr; /* force single column */
-    gap: 16px;
+  .education-spotlight-copy {
+    padding: 18px;
+    border-radius: 24px;
   }
 
-  .service-card {
-    padding: 16px;
-    font-size: 0.9rem;
+  .education-spotlight-image {
+    border-radius: 24px;
   }
 
-  .service-title {
-    font-size: 1.1rem;
+  .education-spotlight-copy h3 {
+    font-size: 1rem;
   }
 
-  .service-description {
-    font-size: 0.85rem;
-    line-height: 1.4;
+  .education-slide-indicator {
+    left: 12px;
+    bottom: 12px;
+    padding: 8px 10px;
   }
 }

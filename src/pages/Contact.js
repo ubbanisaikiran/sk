@@ -6,26 +6,44 @@ const Contact = () => {
   const [state, handleSubmit] = useForm('xzzgeakr');
 
   if (state.succeeded) {
-    return <p className="success-message">Thanks for your message!</p>;
+    return (
+      <section className="contact-section" id="contact">
+        <div className="contact-success-card">
+          <span>Message sent</span>
+          <h2>Thanks for reaching out.</h2>
+          <p>I will get back to you soon.</p>
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className="contact-section">
-      <h2 className="section-title">Connect <span>with me</span></h2>
+    <section className="contact-section" id="contact">
+      <div className="contact-header">
+        <p className="section-kicker">Contact</p>
+        <h2 className="section-title">If you need a builder who can think through the problem and shape the solution, let us talk.</h2>
+      </div>
 
       <div className="contact-container">
         <div className="contact-left">
+          <div className="contact-visual">
+            <img
+              src="https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80"
+              alt="Team collaboration"
+            />
+          </div>
           <h2 className="contact-subtitle">
-            <span className="highlight">Let&apos;s</span> talk
+            <span className="highlight">Let&apos;s</span> build something useful
           </h2>
           <p className="contact-description">
-            I&apos;d love to connect and explore opportunities to work together!
+            I am open to product roles, problem-solving projects, and conversations where
+            technology and business need to work together instead of separately.
           </p>
 
           <div className="contact-info">
-            <p><span>{'\u{1F4E7}'}</span> saikiranubbani@gmail.com</p>
-            <p><span>{'\u{1F4DE}'}</span> +91 9182669041</p>
-            <p><span>{'\u{1F4CD}'}</span> Hyderabad-Telangana, India.</p>
+            <p><span>📧</span> saikiranubbani@gmail.com</p>
+            <p><span>📞</span> +91 9182669041</p>
+            <p><span>📍</span> Hyderabad, Telangana, India</p>
           </div>
           <div className="contact-social-icons">
             <a href="https://www.linkedin.com/in/ubbani-saikiran-7bb753151/" target="_blank" rel="noreferrer">
@@ -40,9 +58,6 @@ const Contact = () => {
             <a href="https://wa.me/919182669041" target="_blank" rel="noreferrer">
               <i className="fab fa-whatsapp" />
             </a>
-            {/* <a href="https://x.com/saikiranubbani" target="_blank" rel="noreferrer">
-              <i className="fab fa-x-twitter" />
-            </a> */}
             <a href="https://facebook.com/sai.sardaar.75/" target="_blank" rel="noreferrer">
               <i className="fab fa-facebook-f" />
             </a>
@@ -50,7 +65,7 @@ const Contact = () => {
         </div>
 
         <div className="contact-right">
-          <h2 className="contact-title">Get in <span className="pink-highlight">touch</span></h2>
+          <h2 className="contact-title">Start the <span className="pink-highlight">conversation</span></h2>
           <form className="contact-form" onSubmit={handleSubmit}>
             <label htmlFor="name">Your Name</label>
             <input
@@ -72,18 +87,18 @@ const Contact = () => {
             />
             <ValidationError prefix="Email" field="email" errors={state.errors} />
 
-            <label htmlFor="message">Write your message here</label>
+            <label htmlFor="message">What are you trying to solve?</label>
             <textarea
               id="message"
               name="message"
               rows="6"
-              placeholder="Enter your message"
+              placeholder="Tell me about the role, project, or problem."
               required
             />
             <ValidationError prefix="Message" field="message" errors={state.errors} />
 
             <button type="submit" className="submit-btn" disabled={state.submitting}>
-              Submit now
+              Send message
             </button>
           </form>
         </div>
